@@ -1,102 +1,140 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css">
-  <title>Mis Finanzas Personales</title>
-</head>
-<body>
-  <div class="container">
-    <h1>Mis Finanzas Personales</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Mis Finanzas Personales</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Mis Finanzas Personales</h1>
 
-    <!-- Resumen mensual -->
-    <div class="resumen">
-      <div class="resumen-item">
-        <h3>Gastos Mensuales</h3>
-        <p id="resumen-gastos">$0</p>
+      <!-- Resumen mensual -->
+      <div class="resumen">
+        <div class="resumen-item">
+          <h3>Gastos Mensuales</h3>
+          <p id="resumen-gastos">$0</p>
+        </div>
+        <div class="resumen-item">
+          <h3>Ingresos Mensuales</h3>
+          <p id="resumen-ingresos">$0</p>
+        </div>
+        <div class="resumen-item">
+          <h3>Ganancias</h3>
+          <p id="resumen-ganancias">$0</p>
+        </div>
       </div>
-      <div class="resumen-item">
-        <h3>Ingresos Mensuales</h3>
-        <p id="resumen-ingresos">$0</p>
+
+      <h2>Gastos</h2>
+      <div class="table-responsive">
+        <table id="tabla-gastos">
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th>Gasto Semanal (MXN)</th>
+              <th>Gasto Mensual (MXN)</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr class="totals">
+              <td>Total</td>
+              <td id="total-gasto-semanal">$0</td>
+              <td id="total-gasto-mensual">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-      <div class="resumen-item">
-        <h3>Ganancias</h3>
-        <p id="resumen-ganancias">$0</p>
+      <h3>Agregar nuevo gasto</h3>
+      <div class="flex-row">
+        <div>
+          <input type="text" id="nuevo-gasto-concepto" placeholder="Concepto" />
+        </div>
+        <div>
+          <input
+            type="number"
+            id="nuevo-gasto-semanal"
+            placeholder="Gasto Semanal"
+            min="0"
+          />
+        </div>
+        <div>
+          <input
+            type="number"
+            id="nuevo-gasto-mensual"
+            placeholder="Gasto Mensual"
+            min="0"
+          />
+        </div>
+      </div>
+      <button onclick="confirmarNuevo('gasto')">Agregar Gasto</button>
+
+      <h2>Ingresos</h2>
+      <div class="table-responsive">
+        <table id="tabla-ingresos">
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th>Ingreso Semanal (MXN)</th>
+              <th>Ingreso Mensual (MXN)</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr class="totals">
+              <td>Total</td>
+              <td id="total-ingreso-semanal">$0</td>
+              <td id="total-ingreso-mensual">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <h3>Agregar nuevo ingreso</h3>
+      <div class="flex-row">
+        <div>
+          <input
+            type="text"
+            id="nuevo-ingreso-concepto"
+            placeholder="Concepto"
+          />
+        </div>
+        <div>
+          <input
+            type="number"
+            id="nuevo-ingreso-semanal"
+            placeholder="Ingreso Semanal"
+            min="0"
+          />
+        </div>
+        <div>
+          <input
+            type="number"
+            id="nuevo-ingreso-mensual"
+            placeholder="Ingreso Mensual"
+            min="0"
+          />
+        </div>
+      </div>
+      <button onclick="confirmarNuevo('ingreso')">Agregar Ingreso</button>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div class="modal" id="modal-confirmacion">
+      <div class="modal-content">
+        <h3>Confirmar Registro</h3>
+        <p id="modal-detalle"></p>
+        <div class="modal-buttons">
+          <button onclick="guardarRegistro()">Confirmar</button>
+          <button onclick="cerrarModal()">Cancelar</button>
+        </div>
       </div>
     </div>
 
-    <h2>Gastos</h2>
-    <table id="tabla-gastos">
-      <thead>
-        <tr>
-          <th>Concepto</th>
-          <th>Gasto Semanal (MXN)</th>
-          <th>Gasto Mensual (MXN)</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-      <tfoot>
-        <tr class="totals">
-          <td>Total</td>
-          <td id="total-gasto-semanal">$0</td>
-          <td id="total-gasto-mensual">$0</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <h3>Agregar nuevo gasto</h3>
-    <div class="flex-row">
-      <div><input type="text" id="nuevo-gasto-concepto" placeholder="Concepto" /></div>
-      <div><input type="number" id="nuevo-gasto-semanal" placeholder="Gasto Semanal" min="0" /></div>
-      <div><input type="number" id="nuevo-gasto-mensual" placeholder="Gasto Mensual" min="0" /></div>
-    </div>
-    <button onclick="confirmarNuevo('gasto')">Agregar Gasto</button>
-
-    <h2>Ingresos</h2>
-    <table id="tabla-ingresos">
-      <thead>
-        <tr>
-          <th>Concepto</th>
-          <th>Ingreso Semanal (MXN)</th>
-          <th>Ingreso Mensual (MXN)</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-      <tfoot>
-        <tr class="totals">
-          <td>Total</td>
-          <td id="total-ingreso-semanal">$0</td>
-          <td id="total-ingreso-mensual">$0</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <h3>Agregar nuevo ingreso</h3>
-    <div class="flex-row">
-      <div><input type="text" id="nuevo-ingreso-concepto" placeholder="Concepto" /></div>
-      <div><input type="number" id="nuevo-ingreso-semanal" placeholder="Ingreso Semanal" min="0" /></div>
-      <div><input type="number" id="nuevo-ingreso-mensual" placeholder="Ingreso Mensual" min="0" /></div>
-    </div>
-    <button onclick="confirmarNuevo('ingreso')">Agregar Ingreso</button>
-  </div>
-
-  <!-- Modal de confirmación -->
-  <div class="modal" id="modal-confirmacion">
-    <div class="modal-content">
-      <h3>Confirmar Registro</h3>
-      <p id="modal-detalle"></p>
-      <div class="modal-buttons">
-        <button onclick="guardarRegistro()">Confirmar</button>
-        <button onclick="cerrarModal()">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
