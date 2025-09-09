@@ -93,6 +93,39 @@ app.post('/api/ingresos', (req, res) => {
   });
 });
 
+// Eliminar un gasto por ID
+app.delete('/api/gastos/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM gastos WHERE id = ?', [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Gasto no encontrado' });
+    } else {
+      res.json({ message: 'Gasto eliminado', id });
+    }
+  });
+});
+
+// Eliminar un ingreso por ID
+app.delete('/api/ingresos/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM ingresos WHERE id = ?', [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Ingreso no encontrado' });
+    } else {
+      res.json({ message: 'Ingreso eliminado', id });
+    }
+  });
+});
+
+
 // Servir frontend estático (opcional)
 // app.use(express.static('public'));
 
