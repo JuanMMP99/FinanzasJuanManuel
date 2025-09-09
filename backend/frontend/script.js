@@ -1,11 +1,99 @@
-// script.js
+// app.js
 
-// Base de datos en memoria
-let gastos = JSON.parse(localStorage.getItem('finanzas-gastos') || '[]');
-let ingresos = JSON.parse(localStorage.getItem('finanzas-ingresos') || '[]');
-let nextIdGastos = Math.max(...gastos.map(g => g.id), 0) + 1;
-let nextIdIngresos = Math.max(...ingresos.map(i => i.id), 0) + 1;
+// Verificar autenticación al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+});
 
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+let authToken = localStorage.getItem('authToken');
+
+function checkAuth() {
+  if (!authToken) {
+    window.location.href = '/login';
+    return;
+  }
+
+  // Verificar token con el servidor
+  fetch(`${API_BASE}/api/auth/verify`, {
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Token inválido');
+    }
+    return response.json();
+  })
+  .then(data => {
+    // Token válido, cargar datos del usuario
+    loadUserData();
+    cargarDatos();
+  })
+  .catch(error => {
+    console.error('Error de autenticación:', error);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    window.location.href = '/login';
+  });
+}
+
+function loadUserData() {
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  if (userData.nombre) {
+    document.getElementById('user-name').textContent = userData.nombre;
+  }
+}
+
+function logout() {
+  if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    window.location.href = '/login';
+  }
+}
+
+function showLoading() {
+  document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+function makeAuthenticatedRequest(url, options = {}) {
+  const defaultOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    }
+  };
+
+  const mergedOptions = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...(options.headers || {})
+    }
+  };
+
+  return fetch(url, mergedOptions)
+    .then(response => {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        window.location.href = '/login';
+        throw new Error('No autorizado');
+      }
+      return response;
+    });
+}
+
+// Variables globales
+let gastos = [];
+let ingresos = [];
 let tipoPendiente = null;
 let datosPendientes = null;
 
@@ -13,16 +101,50 @@ function formatearNumero(num) {
   return '$' + num.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-function guardarEnStorage() {
-  localStorage.setItem('finanzas-gastos', JSON.stringify(gastos));
-  localStorage.setItem('finanzas-ingresos', JSON.stringify(ingresos));
+async function cargarDatos() {
+  showLoading();
+  try {
+    await Promise.all([cargarGastos(), cargarIngresos()]);
+    actualizarResumen();
+  } catch (error) {
+    console.error('Error cargando datos:', error);
+    alert('Error al cargar los datos');
+  } finally {
+    hideLoading();
+  }
 }
 
-function cargarGastos() {
+async function cargarGastos() {
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/gastos`);
+    if (response.ok) {
+      gastos = await response.json();
+      mostrarGastos();
+      return calcularTotalGastos();
+    }
+  } catch (error) {
+    console.error('Error cargando gastos:', error);
+    throw error;
+  }
+}
+
+async function cargarIngresos() {
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/ingresos`);
+    if (response.ok) {
+      ingresos = await response.json();
+      mostrarIngresos();
+      return calcularTotalIngresos();
+    }
+  } catch (error) {
+    console.error('Error cargando ingresos:', error);
+    throw error;
+  }
+}
+
+function mostrarGastos() {
   const tbody = document.querySelector('#tabla-gastos tbody');
   tbody.innerHTML = '';
-  let totalSemanal = 0;
-  let totalMensual = 0;
   
   gastos.forEach(g => {
     const tr = document.createElement('tr');
@@ -33,20 +155,12 @@ function cargarGastos() {
       <td><button class="btn-delete" onclick="eliminarRegistro('gastos', ${g.id})">Eliminar</button></td>
     `;
     tbody.appendChild(tr);
-    totalSemanal += g.semanal;
-    totalMensual += g.mensual;
   });
-  
-  document.getElementById('total-gasto-semanal').textContent = formatearNumero(totalSemanal);
-  document.getElementById('total-gasto-mensual').textContent = formatearNumero(totalMensual);
-  return totalMensual;
 }
 
-function cargarIngresos() {
+function mostrarIngresos() {
   const tbody = document.querySelector('#tabla-ingresos tbody');
   tbody.innerHTML = '';
-  let totalSemanal = 0;
-  let totalMensual = 0;
   
   ingresos.forEach(i => {
     const tr = document.createElement('tr');
@@ -57,8 +171,30 @@ function cargarIngresos() {
       <td><button class="btn-delete" onclick="eliminarRegistro('ingresos', ${i.id})">Eliminar</button></td>
     `;
     tbody.appendChild(tr);
-    totalSemanal += i.semanal;
-    totalMensual += i.mensual;
+  });
+}
+
+function calcularTotalGastos() {
+  let totalSemanal = 0;
+  let totalMensual = 0;
+  
+  gastos.forEach(g => {
+    totalSemanal += parseFloat(g.semanal) || 0;
+    totalMensual += parseFloat(g.mensual) || 0;
+  });
+  
+  document.getElementById('total-gasto-semanal').textContent = formatearNumero(totalSemanal);
+  document.getElementById('total-gasto-mensual').textContent = formatearNumero(totalMensual);
+  return totalMensual;
+}
+
+function calcularTotalIngresos() {
+  let totalSemanal = 0;
+  let totalMensual = 0;
+  
+  ingresos.forEach(i => {
+    totalSemanal += parseFloat(i.semanal) || 0;
+    totalMensual += parseFloat(i.mensual) || 0;
   });
   
   document.getElementById('total-ingreso-semanal').textContent = formatearNumero(totalSemanal);
@@ -67,8 +203,8 @@ function cargarIngresos() {
 }
 
 function actualizarResumen() {
-  const totalGastos = cargarGastos();
-  const totalIngresos = cargarIngresos();
+  const totalGastos = calcularTotalGastos();
+  const totalIngresos = calcularTotalIngresos();
   const ganancias = totalIngresos - totalGastos;
 
   document.getElementById('resumen-gastos').textContent = formatearNumero(totalGastos);
@@ -78,17 +214,34 @@ function actualizarResumen() {
   gananciasElem.style.color = ganancias >= 0 ? '#145a32' : '#c0392b';
 }
 
-function eliminarRegistro(tabla, id) {
+async function eliminarRegistro(tabla, id) {
   if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
   
-  if (tabla === 'gastos') {
-    gastos = gastos.filter(g => g.id !== id);
-  } else {
-    ingresos = ingresos.filter(i => i.id !== id);
+  showLoading();
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/${tabla}/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      if (tabla === 'gastos') {
+        gastos = gastos.filter(g => g.id !== id);
+        mostrarGastos();
+      } else {
+        ingresos = ingresos.filter(i => i.id !== id);
+        mostrarIngresos();
+      }
+      actualizarResumen();
+    } else {
+      const error = await response.json();
+      alert('Error al eliminar: ' + (error.error || 'Error desconocido'));
+    }
+  } catch (error) {
+    console.error('Error eliminando registro:', error);
+    alert('Error al eliminar el registro');
+  } finally {
+    hideLoading();
   }
-  
-  guardarEnStorage();
-  actualizarResumen();
 }
 
 function confirmarNuevo(tipo) {
@@ -119,7 +272,11 @@ function confirmarNuevo(tipo) {
     return;
   }
 
-  datosPendientes = { concepto, semanal: Math.round(semanal * 100) / 100, mensual: Math.round(mensual * 100) / 100 };
+  datosPendientes = { 
+    concepto, 
+    semanal: Math.round(semanal * 100) / 100, 
+    mensual: Math.round(mensual * 100) / 100 
+  };
 
   document.getElementById('modal-detalle').innerHTML = `
     <strong>Concepto:</strong> ${concepto}<br>
@@ -129,30 +286,45 @@ function confirmarNuevo(tipo) {
   document.getElementById('modal-confirmacion').style.display = 'flex';
 }
 
-function guardarRegistro() {
+async function guardarRegistro() {
   if (!datosPendientes) return;
   
-  if (tipoPendiente === 'gasto') {
-    gastos.push({
-      id: nextIdGastos++,
-      ...datosPendientes
+  showLoading();
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/${tipoPendiente}s`, {
+      method: 'POST',
+      body: JSON.stringify(datosPendientes)
     });
-    document.getElementById('nuevo-gasto-concepto').value = '';
-    document.getElementById('nuevo-gasto-semanal').value = '';
-    document.getElementById('nuevo-gasto-mensual').value = '';
-  } else {
-    ingresos.push({
-      id: nextIdIngresos++,
-      ...datosPendientes
-    });
-    document.getElementById('nuevo-ingreso-concepto').value = '';
-    document.getElementById('nuevo-ingreso-semanal').value = '';
-    document.getElementById('nuevo-ingreso-mensual').value = '';
+
+    if (response.ok) {
+      const nuevoRegistro = await response.json();
+      
+      if (tipoPendiente === 'gasto') {
+        gastos.unshift(nuevoRegistro);
+        mostrarGastos();
+        document.getElementById('nuevo-gasto-concepto').value = '';
+        document.getElementById('nuevo-gasto-semanal').value = '';
+        document.getElementById('nuevo-gasto-mensual').value = '';
+      } else {
+        ingresos.unshift(nuevoRegistro);
+        mostrarIngresos();
+        document.getElementById('nuevo-ingreso-concepto').value = '';
+        document.getElementById('nuevo-ingreso-semanal').value = '';
+        document.getElementById('nuevo-ingreso-mensual').value = '';
+      }
+      
+      actualizarResumen();
+      cerrarModal();
+    } else {
+      const error = await response.json();
+      alert('Error al guardar: ' + (error.error || 'Error desconocido'));
+    }
+  } catch (error) {
+    console.error('Error guardando registro:', error);
+    alert('Error al guardar el registro');
+  } finally {
+    hideLoading();
   }
-  
-  guardarEnStorage();
-  cerrarModal();
-  actualizarResumen();
 }
 
 function cerrarModal() {
@@ -167,6 +339,3 @@ document.getElementById('modal-confirmacion').addEventListener('click', function
     cerrarModal();
   }
 });
-
-// Cargar datos al iniciar
-actualizarResumen();

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Finanzas - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+            padding: 0;
+        }
+
+        .auth-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .auth-header h1 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .auth-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .auth-content {
+            padding: 40px 30px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            padding: 4px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c53030;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #c53030;
+            display: none;
+        }
+
+        .success-message {
+            background: #f0fff4;
+            color: #38a169;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #38a169;
+            display: none;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        @media (max-width: 480px) {
+            .auth-content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>💰 Mis Finanzas</h1>
+            <p>Gestiona tus finanzas personales de forma inteligente</p>
+        </div>
+        
+        <div class="auth-content">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showForm('login')">Iniciar Sesión</button>
+                <button class="tab-button" onclick="showForm('register')">Registrarse</button>
+            </div>
+
+            <div class="error-message" id="error-message"></div>
+            <div class="success-message" id="success-message"></div>
+
+            <!-- Formulario de Login -->
+            <form class="auth-form active" id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Correo Electrónico</label>
+                    <input type="email" id="login-email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" name="password" required>
+                </div>
+                
+                <button type="submit" class="submit-btn">Iniciar Sesión</button>
+            </form>
+
+            <!-- Formulario de Registro -->
+            <form class="auth-form" id="register-form">
+                <div class="form-group">
+                    <label for="register-name">Nombre Completo</label>
+                    <input type="text" id="register-name" name="nombre" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-email">Correo Electrónico</label>
+                    <input type="email" id="register-email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-password">Contraseña</label>
+                    <input type="password" id="register-password" name="password" required minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-confirm-password">Confirmar Contraseña</label>
+                    <input type="password" id="register-confirm-password" name="confirmPassword" required minlength="6">
+                </div>
+                
+                <button type="submit" class="submit-btn">Crear Cuenta</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
+        function showForm(formType) {
+            // Actualizar botones
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Mostrar formulario correspondiente
+            document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+            document.getElementById(formType + '-form').classList.add('active');
+            
+            // Limpiar mensajes
+            hideMessages();
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function hideMessages() {
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        function setLoading(isLoading) {
+            const container = document.querySelector('.auth-container');
+            if (isLoading) {
+                container.classList.add('loading');
+            } else {
+                container.classList.remove('loading');
+            }
+        }
+
+        // Manejar login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            hideMessages();
+
+            const formData = new FormData(e.target);
+            const loginData = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Guardar token en localStorage
+                    localStorage.setItem('authToken', result.token);
+                    localStorage.setItem('userData', JSON.stringify(result.user));
+                    
+                    showSuccess('¡Inicio de sesión exitoso! Redirigiendo...');
+                    
+                    // Redireccionar después de 1 segundo
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showError(result.error || 'Error al iniciar sesión');
+                }
+            } catch (error) {
+                showError('Error de conexión. Por favor, intenta de nuevo.');
+                console.error('Error:', error);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Manejar registro
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            hideMessages();
+
+            const formData = new FormData(e.target);
+            const password = formData.get('password');
+            const confirmPassword = formData.get('confirmPassword');
+
+            if (password !== confirmPassword) {
+                showError('Las contraseñas no coinciden');
+                setLoading(false);
+                return;
+            }
+
+            const registerData = {
+                nombre: formData.get('nombre'),
+                email: formData.get('email'),
+                password: password
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registerData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showSuccess('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.');
+                    
+                    // Cambiar a formulario de login después de 2 segundos
+                    setTimeout(() => {
+                        showForm('login');
+                        document.getElementById('login-email').value = registerData.email;
+                    }, 2000);
+                } else {
+                    showError(result.error || 'Error al crear la cuenta');
+                }
+            } catch (error) {
+                showError('Error de conexión. Por favor, intenta de nuevo.');
+                console.error('Error:', error);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Verificar si el usuario ya está logueado
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                // Verificar si el token es válido
+                fetch(`${API_BASE}/api/auth/verify`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/';
+                    } else {
+                        // Token inválido, limpiar localStorage
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('userData');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error verificando token:', error);
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('userData');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

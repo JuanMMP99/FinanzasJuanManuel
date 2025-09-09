@@ -8,7 +8,16 @@
   </head>
   <body>
     <div class="container">
-      <h1>Mis Finanzas Personales</h1>
+      <!-- Header con información del usuario -->
+      <div class="user-header">
+        <div class="user-info">
+          <h1>💰 Mis Finanzas Personales</h1>
+          <p class="user-welcome">Bienvenido, <span id="user-name">Usuario</span></p>
+        </div>
+        <div class="user-actions">
+          <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+        </div>
+      </div>
 
       <!-- Resumen mensual -->
       <div class="resumen">
@@ -135,6 +144,14 @@
       </div>
     </div>
 
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+      <div class="loading-spinner"></div>
+      <p>Cargando...</p>
+    </div>
+
     <script src="script.js"></script>
   </body>
 </html>
+
+     
