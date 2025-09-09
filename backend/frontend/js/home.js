@@ -152,7 +152,10 @@ function mostrarGastos() {
       <td>${g.concepto}</td>
       <td class="amount">${formatearNumero(g.semanal)}</td>
       <td class="amount">${formatearNumero(g.mensual)}</td>
-      <td><button class="btn-delete" onclick="eliminarRegistro('gastos', ${g.id})">Eliminar</button></td>
+      <td class="table-actions">
+        <button class="btn-edit" onclick="window.location.href='editar.html?tipo=gasto&id=${g.id}'">Editar</button>
+        <button class="btn-delete" onclick="eliminarRegistro('gastos', ${g.id})">Eliminar</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -168,11 +171,15 @@ function mostrarIngresos() {
       <td>${i.concepto}</td>
       <td class="amount">${formatearNumero(i.semanal)}</td>
       <td class="amount">${formatearNumero(i.mensual)}</td>
-      <td><button class="btn-delete" onclick="eliminarRegistro('ingresos', ${i.id})">Eliminar</button></td>
+      <td>
+        <button class="btn-edit" onclick="window.location.href='editar.html?tipo=ingreso&id=${i.id}'">Editar</button>
+        <button class="btn-delete" onclick="eliminarRegistro('ingresos', ${i.id})">Eliminar</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
 }
+
 
 function calcularTotalGastos() {
   let totalSemanal = 0;

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles/home.css" />
+  <title>Editar Finanzas</title>
+</head>
+<body>
+  <div class="container">
+    <div class="user-header">
+      <div class="user-info">
+        <h1>✏️ Editar Finanzas</h1>
+        <p class="user-welcome">Bienvenido, <span id="user-name">Usuario</span></p>
+      </div>
+      <div class="user-actions">
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+      </div>
+    </div>
+
+    <!-- Tabla de Gastos -->
+    <h2>Gastos</h2>
+    <div class="table-responsive">
+      <table id="tabla-gastos">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Gasto Semanal (MXN)</th>
+            <th>Gasto Mensual (MXN)</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Tabla de Ingresos -->
+    <h2>Ingresos</h2>
+    <div class="table-responsive">
+      <table id="tabla-ingresos">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Ingreso Semanal (MXN)</th>
+            <th>Ingreso Mensual (MXN)</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de Edición -->
+  <div class="modal" id="modal-edicion">
+    <div class="modal-content">
+      <h3>Editar Registro</h3>
+      <div class="flex-row">
+        <div>
+          <input type="text" id="edit-concepto" placeholder="Concepto" />
+        </div>
+        <div>
+          <input type="number" id="edit-semanal" placeholder="Semanal" min="0" />
+        </div>
+        <div>
+          <input type="number" id="edit-mensual" placeholder="Mensual" min="0" />
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button onclick="guardarEdicion()">Guardar</button>
+        <button onclick="cerrarModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <p>Cargando...</p>
+  </div>
+
+  <script src="./js/editar.js"></script>
+</body>
+</html>
