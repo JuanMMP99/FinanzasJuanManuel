@@ -111,9 +111,9 @@ function confirmarNuevo(tipo) {
   }
   
   if (semanal > 0 && mensual === 0) {
-    mensual = semanal * 4.33;
+    mensual = semanal * 4;
   } else if (mensual > 0 && semanal === 0) {
-    semanal = mensual / 4.33;
+    semanal = mensual / 4;
   } else if (semanal === 0 && mensual === 0) {
     alert('Por favor, ingresa al menos un valor.');
     return;
