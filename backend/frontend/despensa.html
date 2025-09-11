@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./styles/despensa.css" />
+    <title>Mi Despensa</title>
+</head>
+<body>
+    <div class="container">
+        <!-- Header con información del usuario -->
+        <div class="user-header">
+            <div class="user-info">
+                <h1>🥕 Mi Despensa</h1>
+                <p class="user-welcome">Bienvenido, <span id="user-name">Usuario</span></p>
+            </div>
+            <div class="user-actions">
+                <button class="btn-despensa" onclick="irAHome()">🏠 Home</button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- Tabla de productos de despensa -->
+        <h2>Productos</h2>
+        <div class="table-responsive">
+            <table id="tabla-despensa">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th>Fecha de Compra</th>
+                        <th>Días desde compra</th>
+                        <th>Días Restantes</th>
+                        <th>Terminado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Los datos se cargarán dinámicamente -->
+                    <tr>
+                        <td colspan="8" style="text-align: center;">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Agregar nuevo producto</h3>
+        <div class="flex-row">
+            <div>
+                <input type="text" id="nuevo-producto-nombre" placeholder="Producto" required />
+            </div>
+            <div>
+                <input type="number" id="nuevo-producto-cantidad" placeholder="Cantidad" min="0" step="0.01" required />
+            </div>
+            <div>
+                <select id="nuevo-producto-unidad">
+                    <option value="g">Gramos (g)</option>
+                    <option value="kg">Kilogramos (kg)</option>
+                    <option value="ml">Mililitros (ml)</option>
+                    <option value="l">Litros (l)</option>
+                    <option value="unidades" selected>Unidades</option>
+                </select>
+            </div>
+            <div>
+                <input type="number" id="nuevo-producto-precio" placeholder="Precio ($)" min="0" step="0.01" />
+            </div>
+            <div>
+                <input type="date" id="nuevo-producto-fecha-compra" />
+            </div>
+            <div>
+                <input type="number" id="nuevo-producto-duracion" placeholder="Duración (días)" min="1" required />
+            </div>
+        </div>
+        <button onclick="confirmarNuevo()">Agregar Producto</button>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div class="modal" id="modal-confirmacion">
+        <div class="modal-content">
+            <h3>Confirmar Registro</h3>
+            <p id="modal-detalle"></p>
+            <div class="modal-buttons">
+                <button onclick="guardarRegistro()">Confirmar</button>
+                <button onclick="cerrarModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
+<script src="./js/despensa.js"></script>
+</body>
+</html>

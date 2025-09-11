@@ -81,6 +81,21 @@ h3 {
   background: #047857;
   box-shadow: 0 6px 15px rgba(4, 120, 87, 0.5);
 }
+.user-actions .btn-despensa {
+  background: #059669;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  user-select: none;
+}
+.user-actions .btn-despensa:hover {
+  background: #047857;
+  box-shadow: 0 6px 15px rgba(4, 120, 87, 0.5);
+}
 /* Resumen superior */
 .resumen {
   display: flex;

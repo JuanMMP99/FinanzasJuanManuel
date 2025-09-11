@@ -346,3 +346,7 @@ document.getElementById('modal-confirmacion').addEventListener('click', function
     cerrarModal();
   }
 });
+
+function irADespensa() {
+  window.location.href = '/despensa.html';
+}

@@ -56,6 +56,56 @@ db.serialize(() => {
   )`);
 });
 
+// Crear tablas
+db.serialize(() => {
+  // Tabla de usuarios (existente)
+  db.run(`CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Tabla de gastos con relación a usuario (existente)
+  db.run(`CREATE TABLE IF NOT EXISTS gastos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    concepto TEXT NOT NULL,
+    semanal REAL NOT NULL,
+    mensual REAL NOT NULL,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
+
+  // Tabla de ingresos con relación a usuario (existente)
+  db.run(`CREATE TABLE IF NOT EXISTS ingresos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    concepto TEXT NOT NULL,
+    semanal REAL NOT NULL,
+    mensual REAL NOT NULL,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
+
+  // Tabla de despensa (NUEVA)
+  db.run(`CREATE TABLE IF NOT EXISTS despensa (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    nombre TEXT NOT NULL,
+    cantidad REAL NOT NULL,
+    unidad TEXT NOT NULL DEFAULT 'unidades',
+    precio REAL DEFAULT 0,
+    fecha_compra DATETIME DEFAULT CURRENT_TIMESTAMP,
+    duracion INTEGER NOT NULL,
+    terminado BOOLEAN DEFAULT 0,
+    fecha_terminado DATETIME,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
+});
+
 // Middleware de autenticación
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -256,6 +306,86 @@ app.get('/login', (req, res) => {
 // Ruta principal (protegida)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
+
+// Rutas para la despensa
+app.get('/api/despensa', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM despensa WHERE usuario_id = ? ORDER BY fecha_creacion DESC', 
+    [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/despensa', authenticateToken, (req, res) => {
+  const { nombre, cantidad, unidad, precio, fechaCompra, duracion, terminado } = req.body;
+  
+  if (!nombre || cantidad == null || duracion == null) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+  
+  const sql = `INSERT INTO despensa 
+               (usuario_id, nombre, cantidad, unidad, precio, fecha_compra, duracion, terminado) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  
+  db.run(sql, [
+    req.user.userId, 
+    nombre, 
+    cantidad, 
+    unidad || 'unidades', 
+    precio || 0, 
+    fechaCompra || new Date().toISOString(), 
+    duracion,
+    terminado || 0
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Devolver el producto recién creado
+    db.get('SELECT * FROM despensa WHERE id = ?', [this.lastID], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json(row);
+    });
+  });
+});
+
+app.put('/api/despensa/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { nombre, cantidad, unidad, precio, fechaCompra, duracion, terminado, fechaTerminado } = req.body;
+  
+  // Verificar que el producto pertenece al usuario
+  db.get('SELECT id FROM despensa WHERE id = ? AND usuario_id = ?', [id, req.user.userId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
+    
+    const sql = `UPDATE despensa 
+                 SET nombre = ?, cantidad = ?, unidad = ?, precio = ?, 
+                     fecha_compra = ?, duracion = ?, terminado = ?, fecha_terminado = ?
+                 WHERE id = ?`;
+    
+    db.run(sql, [
+      nombre, cantidad, unidad, precio, fechaCompra, duracion, 
+      terminado ? 1 : 0, fechaTerminado, id
+    ], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      // Devolver el producto actualizado
+      db.get('SELECT * FROM despensa WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(row);
+      });
+    });
+  });
+});
+
+app.delete('/api/despensa/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  db.run('DELETE FROM despensa WHERE id = ? AND usuario_id = ?', 
+    [id, req.user.userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json({ message: 'Producto eliminado', id });
+  });
 });
 
 // Manejo de errores global

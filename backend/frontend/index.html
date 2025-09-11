@@ -12,9 +12,14 @@
       <div class="user-header">
         <div class="user-info">
           <h1>💰 Mis Finanzas Personales</h1>
-          <p class="user-welcome">Bienvenido, <span id="user-name">Usuario</span></p>
+          <p class="user-welcome">
+            Bienvenido, <span id="user-name">Usuario</span>
+          </p>
         </div>
         <div class="user-actions">
+          <button class="btn-despensa" onclick="irADespensa()">
+            🥕 Despensa
+          </button>
           <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
         </div>
       </div>
@@ -145,7 +150,7 @@
     </div>
 
     <!-- Loading overlay -->
-    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-overlay" id="loading-overlay" style="display: none">
       <div class="loading-spinner"></div>
       <p>Cargando...</p>
     </div>
@@ -153,5 +158,3 @@
     <script src="./js/home.js"></script>
   </body>
 </html>
-
-     
