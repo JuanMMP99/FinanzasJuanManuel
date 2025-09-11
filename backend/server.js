@@ -350,27 +350,37 @@ app.post('/api/despensa', authenticateToken, (req, res) => {
 
 app.put('/api/despensa/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  const { nombre, cantidad, unidad, precio, fechaCompra, duracion, terminado, fechaTerminado } = req.body;
+  const { terminado, fecha_terminado } = req.body; // Solo recibimos estos campos
+  
+  console.log('Datos recibidos para actualizar:', { id, terminado, fecha_terminado });
   
   // Verificar que el producto pertenece al usuario
   db.get('SELECT id FROM despensa WHERE id = ? AND usuario_id = ?', [id, req.user.userId], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Error en SELECT:', err);
+      return res.status(500).json({ error: err.message });
+    }
     if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
     
+    // SOLUCIÓN: Solo actualizar los campos de terminado
     const sql = `UPDATE despensa 
-                 SET nombre = ?, cantidad = ?, unidad = ?, precio = ?, 
-                     fecha_compra = ?, duracion = ?, terminado = ?, fecha_terminado = ?
+                 SET terminado = ?, fecha_terminado = ?
                  WHERE id = ?`;
     
-    db.run(sql, [
-      nombre, cantidad, unidad, precio, fechaCompra, duracion, 
-      terminado ? 1 : 0, fechaTerminado, id
-    ], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
+    console.log('Ejecutando SQL:', sql, [terminado ? 1 : 0, fecha_terminado, id]);
+    
+    db.run(sql, [terminado ? 1 : 0, fecha_terminado, id], function(err) {
+      if (err) {
+        console.error('Error en UPDATE:', err);
+        return res.status(500).json({ error: err.message });
+      }
       
       // Devolver el producto actualizado
       db.get('SELECT * FROM despensa WHERE id = ?', [id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+          console.error('Error en SELECT después de UPDATE:', err);
+          return res.status(500).json({ error: err.message });
+        }
         res.json(row);
       });
     });

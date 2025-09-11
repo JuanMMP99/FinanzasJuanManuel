@@ -1,7 +1,8 @@
-// Configuración global - Soluciona el error "API_BASE is not defined"
+// Configuración global
 const API_BASE = "http://localhost:3000";
+const authToken = localStorage.getItem("authToken");
 
-// Variable global para almacenar los productos - Soluciona el error "despensa already declared"
+// Variable global para almacenar los productos
 let productosDespensa = [];
 
 // Mostrar fecha actual en el campo de fecha de compra
@@ -10,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
     new Date();
 
   // Cargar datos del usuario
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = JSON.parse(localStorage.getItem("userData") || "{}");
   if (user && user.nombre) {
     document.getElementById("user-name").textContent = user.nombre;
   }
@@ -19,20 +20,87 @@ document.addEventListener("DOMContentLoaded", function () {
   cargarDespensa();
 });
 
+// Función para hacer peticiones autenticadas
+async function makeAuthenticatedRequest(url, options = {}) {
+  const defaultOptions = {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+  };
+
+  const mergedOptions = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...(options.headers || {}),
+    },
+  };
+
+  return fetch(url, mergedOptions).then((response) => {
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
+      window.location.href = "/login";
+      throw new Error("No autorizado");
+    }
+    return response;
+  });
+}
+
+// Mostrar/ocultar loading
+function mostrarLoading(mostrar) {
+  document.getElementById("loading-overlay").style.display = mostrar
+    ? "flex"
+    : "none";
+}
+
+// Cargar productos desde la base de datos
 async function cargarDespensa() {
   try {
     mostrarLoading(true);
-    // En una implementación real, aquí se haría la llamada a la API
-    // Simulamos una respuesta con datos de ejemplo
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    mostrarDespensaTabla();
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/despensa`);
+    if (response.ok) {
+      productosDespensa = await response.json();
+      mostrarDespensaTabla();
+    } else {
+      console.error("Error cargando despensa:", await response.text());
+      showNotification("Error al cargar la despensa", "error");
+    }
   } catch (err) {
     console.error("Error cargando despensa:", err);
-    alert("Error al cargar la despensa");
+    showNotification("Error al cargar la despensa", "error");
   } finally {
     mostrarLoading(false);
   }
+}
+
+function showNotification(message, type = "info") {
+  const notificationContainer =
+    document.getElementById("notification-container") ||
+    createNotificationContainer();
+
+  const notification = document.createElement("div");
+  notification.className = `notification notification-${type}`;
+  notification.textContent = message;
+
+  notificationContainer.appendChild(notification);
+
+  // Eliminar la notificación después de 3 segundos
+  setTimeout(() => {
+    notification.remove();
+  }, 3000);
+}
+
+// Crear contenedor de notificaciones si no existe
+function createNotificationContainer() {
+  const container = document.createElement("div");
+  container.id = "notification-container";
+  container.className = "notification-container";
+  document.body.appendChild(container);
+  return container;
 }
 
 function mostrarDespensaTabla() {
@@ -47,7 +115,7 @@ function mostrarDespensaTabla() {
 
   productosDespensa.forEach((p) => {
     const hoy = new Date();
-    const fechaCompra = new Date(p.fechaCompra);
+    const fechaCompra = new Date(p.fecha_compra);
     const diasDesdeCompra = Math.floor(
       (hoy - fechaCompra) / (1000 * 60 * 60 * 24)
     );
@@ -55,9 +123,9 @@ function mostrarDespensaTabla() {
 
     // Calcular días que duró si está terminado
     const diasDuracion =
-      p.terminado && p.fechaTerminado
+      p.terminado && p.fecha_terminado
         ? Math.floor(
-            (new Date(p.fechaTerminado) - fechaCompra) / (1000 * 60 * 60 * 24)
+            (new Date(p.fecha_terminado) - fechaCompra) / (1000 * 60 * 60 * 24)
           )
         : null;
 
@@ -68,35 +136,33 @@ function mostrarDespensaTabla() {
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-                    <td>${p.nombre}</td>
-                    <td>${p.cantidad} ${p.unidad}</td>
-                    <td>$${p.precio ? p.precio.toFixed(2) : "0.00"}</td>
-                    <td>${new Date(p.fechaCompra).toLocaleDateString()}</td>
-                    <td>${diasDesdeCompra}</td>
-                    <td class="${estadoClase}">${
+  <td>${p.nombre}</td>
+  <td>${p.cantidad} ${p.unidad}</td>
+  <td>$${p.precio ? p.precio.toFixed(2) : "0.00"}</td>
+  <td>${new Date(p.fecha_compra).toLocaleDateString()}</td>
+  <td>${diasDesdeCompra}</td>
+  <td class="${estadoClase}">
+    ${
       p.terminado
-        ? diasDuracion !== null
+        ? p.fecha_terminado
           ? `Duró ${diasDuracion} días`
-          : "-"
+          : "Terminado" // Muestra 'Terminado' si la fecha no existe
         : diasRestantes
-    }</td>
-                    <td>
-                        <input type="checkbox" class="terminado-checkbox" ${
-                          p.terminado ? "checked" : ""
-                        } 
-                               onchange="marcarTerminado(${
-                                 p.id
-                               }, this.checked)" />
-                    </td>
-                    <td class="action-buttons">
-                        <button class="btn-edit" onclick="editarProducto(${
-                          p.id
-                        })">Editar</button>
-                        <button class="btn-danger" onclick="eliminarProducto(${
-                          p.id
-                        })">Eliminar</button>
-                    </td>
-                `;
+    }
+  </td>
+  <td>
+    <input type="checkbox" class="terminado-checkbox" data-id="${p.id}" ${
+      p.terminado ? "checked" : ""
+    } 
+           onchange="marcarTerminado(${p.id}, this.checked)" />
+  </td>
+  <td class="action-buttons">
+    <button class="btn-edit" onclick="editarProducto(${p.id})">Editar</button>
+    <button class="btn-danger" onclick="eliminarProducto(${
+      p.id
+    })">Eliminar</button>
+  </td>
+`;
     tbody.appendChild(tr);
   });
 }
@@ -154,21 +220,29 @@ function confirmarNuevo() {
 async function guardarRegistro() {
   try {
     mostrarLoading(true);
-    // En una implementación real, aquí se haría la llamada a la API
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Simular respuesta del servidor
-    const nuevoProducto = {
-      id: Date.now(), // ID temporal
-      ...window.productoTemporal,
-    };
+    const response = await makeAuthenticatedRequest(
+      `${API_BASE}/api/despensa`,
+      {
+        method: "POST",
+        body: JSON.stringify(window.productoTemporal),
+      }
+    );
 
-    productosDespensa.unshift(nuevoProducto);
-    mostrarDespensaTabla();
-    limpiarFormulario();
-    cerrarModal();
-
-    alert("Producto agregado correctamente");
+    if (response.ok) {
+      const nuevoProducto = await response.json();
+      productosDespensa.unshift(nuevoProducto);
+      mostrarDespensaTabla();
+      limpiarFormulario();
+      cerrarModal();
+      showNotification("Producto agregado correctamente", "success");
+    } else {
+      const error = await response.json();
+      showNotification(
+        "Error al guardar el producto: " + (error.error || "Error desconocido"),
+        "error"
+      );
+    }
   } catch (err) {
     console.error("Error guardando producto:", err);
     alert("Error al guardar el producto");
@@ -180,21 +254,59 @@ async function guardarRegistro() {
 async function marcarTerminado(id, terminado) {
   try {
     mostrarLoading(true);
-    // En una implementación real, aquí se haría la llamada a la API
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Actualizar localmente
-    const index = productosDespensa.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      productosDespensa[index].terminado = terminado;
-      productosDespensa[index].fechaTerminado = terminado
-        ? new Date().toISOString()
-        : null;
-      mostrarDespensaTabla();
+    const datosActualizados = {
+      terminado: terminado,
+      fecha_terminado: terminado ? new Date().toISOString() : null,
+    };
+
+    console.log("Enviando datos:", datosActualizados); // Para debugging
+
+    const response = await makeAuthenticatedRequest(
+      `${API_BASE}/api/despensa/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(datosActualizados),
+      }
+    );
+
+    if (response.ok) {
+      const productoActualizado = await response.json();
+
+      // Actualizar localmente
+      const index = productosDespensa.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        productosDespensa[index] = productoActualizado;
+        mostrarDespensaTabla();
+        showNotification(
+          terminado ? "Producto marcado como terminado" : "Producto reactivado",
+          "success"
+        );
+      }
+    } else {
+      const errorText = await response.text();
+      console.error("Error del servidor:", errorText);
+      showNotification("Error al actualizar el producto", "error");
+
+      // Revertir el checkbox si falla
+      const checkbox = document.querySelector(
+        `.terminado-checkbox[data-id="${id}"]`
+      );
+      if (checkbox) {
+        checkbox.checked = !terminado;
+      }
     }
   } catch (err) {
     console.error("Error actualizando producto:", err);
-    alert("Error al actualizar el producto");
+    showNotification("Error de conexión", "error");
+
+    // Revertir el checkbox si falla
+    const checkbox = document.querySelector(
+      `.terminado-checkbox[data-id="${id}"]`
+    );
+    if (checkbox) {
+      checkbox.checked = !terminado;
+    }
   } finally {
     mostrarLoading(false);
   }
@@ -214,25 +326,32 @@ function cerrarModal() {
   document.getElementById("modal-confirmacion").style.display = "none";
 }
 
-function mostrarLoading(mostrar) {
-  document.getElementById("loading-overlay").style.display = mostrar
-    ? "flex"
-    : "none";
-}
-
 async function eliminarProducto(id) {
   if (!confirm("¿Estás seguro de que quieres eliminar este producto?")) return;
 
   try {
     mostrarLoading(true);
-    // En una implementación real, aquí se haría la llamada a la API
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Eliminar localmente
-    productosDespensa = productosDespensa.filter((p) => p.id !== id);
-    mostrarDespensaTabla();
+    const response = await makeAuthenticatedRequest(
+      `${API_BASE}/api/despensa/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
 
-    alert("Producto eliminado correctamente");
+    if (response.ok) {
+      // Eliminar localmente
+      productosDespensa = productosDespensa.filter((p) => p.id !== id);
+      mostrarDespensaTabla();
+      showNotification("Producto eliminado correctamente", "success");
+    } else {
+      const error = await response.json();
+      showNotification(
+        "Error al eliminar el producto: " +
+          (error.error || "Error desconocido"),
+        "error"
+      );
+    }
   } catch (err) {
     console.error("Error eliminando producto:", err);
     alert("Error al eliminar el producto");
@@ -242,21 +361,38 @@ async function eliminarProducto(id) {
 }
 
 function editarProducto(id) {
+  const producto = productosDespensa.find((p) => p.id === id);
+  if (!producto) {
+    alert("Producto no encontrado");
+    return;
+  }
+
+  // Llenar el formulario con los datos del producto
+  document.getElementById("nuevo-producto-nombre").value = producto.nombre;
+  document.getElementById("nuevo-producto-cantidad").value = producto.cantidad;
+  document.getElementById("nuevo-producto-unidad").value = producto.unidad;
+  document.getElementById("nuevo-producto-precio").value =
+    producto.precio || "";
+  document.getElementById("nuevo-producto-fecha-compra").value =
+    producto.fecha_compra.split("T")[0];
+  document.getElementById("nuevo-producto-duracion").value = producto.duracion;
+
+  // Guardar el ID para la actualización
+  window.productoEditando = id;
+
   alert(
-    "Funcionalidad de edición en desarrollo. Por ahora, puedes eliminar y volver a agregar el producto."
+    "Complete los cambios y haga clic en 'Agregar Producto' para actualizar"
   );
 }
 
 function irAHome() {
-  alert("Redirigiendo a la página de inicio...");
-  window.location.href = 'index.html'; 
+  window.location.href = "index.html";
 }
 
 function logout() {
   if (confirm("¿Estás seguro de que quieres cerrar sesión?")) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    alert("Sesión cerrada. Redirigiendo...");
-    // window.location.href = 'login.html'; // En una implementación real
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
+    window.location.href = "login.html";
   }
 }
