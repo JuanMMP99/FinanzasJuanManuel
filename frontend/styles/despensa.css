@@ -288,3 +288,42 @@ button:hover {
   color: #4caf50;
   font-weight: bold;
 }
+
+/* Estilos para la barra de progreso de duración */
+.duracion-cell {
+  min-width: 150px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  height: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.progress-bar.bueno { background-color: #4caf50; }
+.progress-bar.advertencia { background-color: #ff9800; }
+.progress-bar.urgente { background-color: #f44336; }
+
+/* Resaltado de filas según estado */
+tr.estado-advertencia {
+  background-color: #fff3cd !important;
+}
+tr.estado-urgente {
+  background-color: #f8d7da !important;
+}
+

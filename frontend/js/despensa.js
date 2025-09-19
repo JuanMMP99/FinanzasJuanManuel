@@ -133,21 +133,31 @@ function mostrarDespensaTabla() {
     let estadoClase = "bueno";
     if (diasRestantes <= 2) estadoClase = "urgente";
     else if (diasRestantes <= 5) estadoClase = "advertencia";
+    
+    const porcentajeRestante = (diasRestantes / p.duracion) * 100;
 
     const tr = document.createElement("tr");
+    if (estadoClase === 'advertencia') tr.classList.add('estado-advertencia');
+    if (estadoClase === 'urgente') tr.classList.add('estado-urgente');
+
     tr.innerHTML = `
   <td>${p.nombre}</td>
   <td>${p.cantidad} ${p.unidad}</td>
   <td>$${p.precio ? p.precio.toFixed(2) : "0.00"}</td>
   <td>${new Date(p.fecha_compra).toLocaleDateString()}</td>
   <td>${diasDesdeCompra}</td>
-  <td class="${estadoClase}">
+  <td class="duracion-cell">
     ${
       p.terminado
         ? p.fecha_terminado
           ? `Duró ${diasDuracion} días`
           : "Terminado" // Muestra 'Terminado' si la fecha no existe
-        : diasRestantes
+        : `
+          <div class="progress-bar-container" title="${diasRestantes} días restantes">
+            <div class="progress-bar ${estadoClase}" style="width: ${porcentajeRestante}%">
+              ${diasRestantes} días
+            </div>
+          </div>`
     }
   </td>
   <td>

@@ -16,11 +16,6 @@ let datosPendientes = null;
 let presupuestos = JSON.parse(localStorage.getItem('presupuestos')) || {};
 let metas = JSON.parse(localStorage.getItem('metas')) || [];
 
-// Variables para almacenar las instancias de los gráficos
-let gastosCategoriaChartInstance = null;
-let comparativaMensualChartInstance = null;
-let proyeccionAhorrosChartInstance = null;
-
 function checkAuth() {
   if (!authToken) {
     window.location.href = '/login';
@@ -113,7 +108,6 @@ async function cargarDatos() {
   try {
     await Promise.all([cargarGastos(), cargarIngresos()]);
     actualizarResumen();
-    inicializarDashboard();
     cargarPresupuestos();
     cargarMetas();
     verificarRecordatorios();
@@ -177,8 +171,8 @@ function mostrarGastos() {
       <td class="amount">${formatearNumero(g.semanal)}</td>
       <td class="amount">${formatearNumero(g.mensual)}</td>
       <td class="table-actions">
-        <button class="btn-edit" onclick="window.location.href='editar.html?tipo=gasto&id=${g.id}'">Editar</button>
-        <button class="btn-delete" onclick="eliminarRegistro('gastos', ${g.id})">Eliminar</button>
+        <button class="btn-icon" title="Editar" onclick="window.location.href='editar.html?tipo=gasto&id=${g.id}'">✏️</button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarRegistro('gastos', ${g.id})">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -205,8 +199,8 @@ function mostrarIngresos() {
       <td class="amount">${formatearNumero(i.semanal)}</td>
       <td class="amount">${formatearNumero(i.mensual)}</td>
       <td>
-        <button class="btn-edit" onclick="window.location.href='editar.html?tipo=ingreso&id=${i.id}'">Editar</button>
-        <button class="btn-delete" onclick="eliminarRegistro('ingresos', ${i.id})">Eliminar</button>
+        <button class="btn-icon" title="Editar" onclick="window.location.href='editar.html?tipo=ingreso&id=${i.id}'">✏️</button>
+        <button class="btn-icon" title="Eliminar" onclick="eliminarRegistro('ingresos', ${i.id})">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -271,7 +265,6 @@ async function eliminarRegistro(tabla, id) {
         mostrarIngresos();
       }
       actualizarResumen();
-      inicializarDashboard();
     } else {
       const error = await response.json();
       alert('Error al eliminar: ' + (error.error || 'Error desconocido'));
@@ -360,7 +353,6 @@ async function guardarRegistro() {
       }
       
       actualizarResumen();
-      inicializarDashboard();
       cerrarModal();
     } else {
       const error = await response.json();
@@ -391,164 +383,8 @@ function irADespensa() {
   window.location.href = '/despensa.html';
 }
 
-// Funciones para el dashboard mejorado
-function inicializarDashboard() {
-  crearGraficoGastosPorCategoria();
-  crearComparativaMensual();
-  crearProyeccionAhorros();
-  cargarAlertas();
-}
-
-function crearGraficoGastosPorCategoria() {
-  const ctx = document.getElementById('gastosCategoriaChart');
-  if (!ctx) return;
-  
-  // Destruir la instancia anterior si existe
-  if (gastosCategoriaChartInstance) {
-    gastosCategoriaChartInstance.destroy();
-  }
-  const gastosPorCategoria = {};
-  gastos.forEach(gasto => {
-    const categoria = gasto.categoria || 'Sin categoría';
-    if (!gastosPorCategoria[categoria]) {
-      gastosPorCategoria[categoria] = 0;
-    }
-    gastosPorCategoria[categoria] += parseFloat(gasto.mensual);
-  });
-  
-  gastosCategoriaChartInstance = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: Object.keys(gastosPorCategoria),
-      datasets: [{
-        data: Object.values(gastosPorCategoria),
-        backgroundColor: [
-          '#4CAF50', '#2196F3', '#FF9800', '#F44336', 
-          '#9C27B0', '#607D8B', '#FFEB3B', '#00BCD4'
-        ]
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'bottom'
-        }
-      }
-    }
-  });
-}
-
-function crearComparativaMensual() {
-  const ctx = document.getElementById('comparativaMensualChart');
-  if (!ctx) return;
-
-  // Destruir la instancia anterior si existe
-  if (comparativaMensualChartInstance) {
-    comparativaMensualChartInstance.destroy();
-  }
-  
-  // Datos de ejemplo (deberías obtener datos reales de meses anteriores)
-  const meses = ['Mes Anterior', 'Mes Actual'];
-  const gastosData = [calcularTotalGastos() * 0.8, calcularTotalGastos()];
-  const ingresosData = [calcularTotalIngresos() * 0.9, calcularTotalIngresos()];
-
-  comparativaMensualChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: meses,
-      datasets: [
-        {
-          label: 'Gastos',
-          data: gastosData,
-          backgroundColor: '#F44336'
-        },
-        {
-          label: 'Ingresos',
-          data: ingresosData,
-          backgroundColor: '#4CAF50'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
-}
-
-function crearProyeccionAhorros() {
-  const ctx = document.getElementById('proyeccionAhorrosChart');
-  if (!ctx) return;
-  // Destruir la instancia anterior si existe
-  if (proyeccionAhorrosChartInstance) {
-    proyeccionAhorrosChartInstance.destroy();
-  }
-
-  const meses = ['Actual', 'Próximo mes', '2 meses', '3 meses', '6 meses'];
-  const ahorroActual = calcularTotalIngresos() - calcularTotalGastos();
-  const proyeccion = [
-    ahorroActual,
-    ahorroActual * 2,
-    ahorroActual * 3,
-    ahorroActual * 4,
-    ahorroActual * 7
-  ];
-  
-  proyeccionAhorrosChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: meses,
-      datasets: [{
-        label: 'Proyección de ahorros',
-        data: proyeccion,
-        borderColor: '#2196F3',
-        tension: 0.1,
-        fill: true,
-        backgroundColor: 'rgba(33, 150, 243, 0.1)'
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
-}
-
-function cargarAlertas() {
-  const alertasContainer = document.getElementById('alertasContainer');
-  if (!alertasContainer) return;
-  
-  alertasContainer.innerHTML = '';
-  
-  // Alertas de presupuesto
-  const alertasPresupuesto = verificarAlertasPresupuesto();
-  
-  // Alertas de gastos inusuales
-  const alertasGastos = verificarGastosInusuales();
-  
-  // Combinar todas las alertas
-  const todasAlertas = [...alertasPresupuesto, ...alertasGastos];
-  
-  if (todasAlertas.length === 0) {
-    alertasContainer.innerHTML = '<p>No hay alertas en este momento.</p>';
-    return;
-  }
-  
-  todasAlertas.forEach(alerta => {
-    const div = document.createElement('div');
-    div.className = `alerta-item ${alerta.tipo}`;
-    div.textContent = alerta.mensaje;
-    alertasContainer.appendChild(div);
-  });
+function irADashboard() {
+  window.location.href = '/dashboard.html';
 }
 
 function verificarAlertasPresupuesto() {
@@ -615,7 +451,6 @@ async function actualizarCategoria(tipo, id, categoria) {
       }
       
       // Actualizar dashboard
-      inicializarDashboard();
       cargarPresupuestos();
     }
   } catch (error) {
@@ -804,4 +639,8 @@ document.addEventListener('click', function(e) {
   if (e.target.classList.contains('modal')) {
     e.target.style.display = 'none';
   }
+});
+
+app.get('/dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'dashboard.html'));
 });

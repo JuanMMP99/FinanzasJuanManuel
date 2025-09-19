@@ -81,11 +81,18 @@ h3 {
 }
 
 .alerta-item {
-  padding: 10px;
+  padding: 12px 15px;
   margin-bottom: 10px;
   border-radius: 4px;
   background-color: #fff3cd;
   border-left: 4px solid #ffc107;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alerta-icon {
+  font-size: 20px;
 }
 
 .alerta-item.critica {
@@ -212,6 +219,11 @@ th {
   background-color: #e8f5e9;
   color: #2e7d32;
   font-weight: 600;
+}
+
+/* Zebra striping for better readability */
+tr:nth-child(even) {
+  background-color: #f8f9fa;
 }
 
 tr:hover {
@@ -346,6 +358,24 @@ button:hover {
 .action-buttons button {
   padding: 8px 12px;
   font-size: 14px;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  font-size: 18px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+.btn-icon:hover {
+  background-color: rgba(0,0,0,0.1);
 }
 
 @media (max-width: 768px) {

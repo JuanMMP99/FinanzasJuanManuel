@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles/dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <title>Dashboard Financiero</title>
+</head>
+<body>
+    <div class="container">
+        <!-- Header con información del usuario -->
+        <div class="user-header">
+            <div class="user-info">
+                <h1>📊 Dashboard Financiero</h1>
+                <p class="user-welcome">
+                    Análisis detallado de tus finanzas, <span id="user-name">Usuario</span>
+                </p>
+            </div>
+            <div class="user-actions">
+                <button class="btn-home" onclick="irAHome()">
+                    🏠 Home
+                </button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- Dashboard con gráficos -->
+        <div class="dashboard">
+            <div class="dashboard-grid">
+                <!-- Card 1: Distribución de Gastos -->
+                <div class="dashboard-card">
+                    <h3>Distribución de Gastos por Categoría</h3>
+                    <canvas id="gastosCategoriaChart"></canvas>
+                </div>
+
+                <!-- Card 2: Flujo de Efectivo Mensual (NUEVO) -->
+                <div class="dashboard-card large-card">
+                    <h3>Flujo de Efectivo Mensual</h3>
+                    <canvas id="flujoEfectivoChart"></canvas>
+                </div>
+
+                <!-- Card 3: Top 5 Gastos (NUEVO) -->
+                <div class="dashboard-card">
+                    <h3>Top 5 Gastos del Mes</h3>
+                    <div id="topGastosContainer">
+                        <!-- Se llena con JS -->
+                    </div>
+                </div>
+
+                <!-- Card 4: Comparativa Mensual -->
+                <div class="dashboard-card">
+                    <h3>Comparativa Mensual</h3>
+                    <canvas id="comparativaMensualChart"></canvas>
+                </div>
+
+                <!-- Card 5: Proyección de Ahorros -->
+                <div class="dashboard-card">
+                    <h3>Proyección de Ahorros</h3>
+                    <canvas id="proyeccionAhorrosChart"></canvas>
+                </div>
+
+                <!-- Card 6: Alertas y Notificaciones -->
+                <div class="dashboard-card">
+                    <h3>Alertas y Notificaciones</h3>
+                    <div id="alertasContainer">
+                        <!-- Se llena con JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none">
+        <div class="loading-spinner"></div>
+        <p>Cargando datos del dashboard...</p>
+    </div>
+
+    <script src="./js/dashboard.js"></script>
+</body>
+</html>
