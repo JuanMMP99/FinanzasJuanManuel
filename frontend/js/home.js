@@ -16,6 +16,11 @@ let datosPendientes = null;
 let presupuestos = JSON.parse(localStorage.getItem('presupuestos')) || {};
 let metas = JSON.parse(localStorage.getItem('metas')) || [];
 
+// Variables para almacenar las instancias de los gráficos
+let gastosCategoriaChartInstance = null;
+let comparativaMensualChartInstance = null;
+let proyeccionAhorrosChartInstance = null;
+
 function checkAuth() {
   if (!authToken) {
     window.location.href = '/login';
@@ -163,6 +168,7 @@ function mostrarGastos() {
           <option value="vivienda" ${g.categoria === 'vivienda' ? 'selected' : ''}>Vivienda</option>
           <option value="servicios" ${g.categoria === 'servicios' ? 'selected' : ''}>Servicios</option>
           <option value="entretenimiento" ${g.categoria === 'entretenimiento' ? 'selected' : ''}>Entretenimiento</option>
+          <option value="despensa" ${g.categoria === 'despensa' ? 'selected' : ''}>Despensa</option>
           <option value="salud" ${g.categoria === 'salud' ? 'selected' : ''}>Salud</option>
           <option value="educacion" ${g.categoria === 'educacion' ? 'selected' : ''}>Educación</option>
           <option value="otros" ${g.categoria === 'otros' || !g.categoria ? 'selected' : ''}>Otros</option>
@@ -397,7 +403,10 @@ function crearGraficoGastosPorCategoria() {
   const ctx = document.getElementById('gastosCategoriaChart');
   if (!ctx) return;
   
-  // Agrupar gastos por categoría
+  // Destruir la instancia anterior si existe
+  if (gastosCategoriaChartInstance) {
+    gastosCategoriaChartInstance.destroy();
+  }
   const gastosPorCategoria = {};
   gastos.forEach(gasto => {
     const categoria = gasto.categoria || 'Sin categoría';
@@ -407,7 +416,7 @@ function crearGraficoGastosPorCategoria() {
     gastosPorCategoria[categoria] += parseFloat(gasto.mensual);
   });
   
-  new Chart(ctx, {
+  gastosCategoriaChartInstance = new Chart(ctx, {
     type: 'pie',
     data: {
       labels: Object.keys(gastosPorCategoria),
@@ -433,13 +442,18 @@ function crearGraficoGastosPorCategoria() {
 function crearComparativaMensual() {
   const ctx = document.getElementById('comparativaMensualChart');
   if (!ctx) return;
+
+  // Destruir la instancia anterior si existe
+  if (comparativaMensualChartInstance) {
+    comparativaMensualChartInstance.destroy();
+  }
   
   // Datos de ejemplo (deberías obtener datos reales de meses anteriores)
   const meses = ['Mes Anterior', 'Mes Actual'];
   const gastosData = [calcularTotalGastos() * 0.8, calcularTotalGastos()];
   const ingresosData = [calcularTotalIngresos() * 0.9, calcularTotalIngresos()];
-  
-  new Chart(ctx, {
+
+  comparativaMensualChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: meses,
@@ -470,7 +484,11 @@ function crearComparativaMensual() {
 function crearProyeccionAhorros() {
   const ctx = document.getElementById('proyeccionAhorrosChart');
   if (!ctx) return;
-  
+  // Destruir la instancia anterior si existe
+  if (proyeccionAhorrosChartInstance) {
+    proyeccionAhorrosChartInstance.destroy();
+  }
+
   const meses = ['Actual', 'Próximo mes', '2 meses', '3 meses', '6 meses'];
   const ahorroActual = calcularTotalIngresos() - calcularTotalGastos();
   const proyeccion = [
@@ -481,7 +499,7 @@ function crearProyeccionAhorros() {
     ahorroActual * 7
   ];
   
-  new Chart(ctx, {
+  proyeccionAhorrosChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
       labels: meses,

@@ -300,16 +300,16 @@ app.get('/api/user/profile', authenticateToken, (req, res) => {
 });
 
 // Servir archivos estáticos del frontend
-app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // Ruta para el login
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'login.html'));
 });
 
 // Ruta principal (protegida)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
 // Rutas para la despensa
@@ -322,32 +322,53 @@ app.get('/api/despensa', authenticateToken, (req, res) => {
 });
 
 app.post('/api/despensa', authenticateToken, (req, res) => {
-  const { nombre, cantidad, unidad, precio, fechaCompra, duracion, terminado } = req.body;
+  const { nombre, cantidad, unidad, precio, fecha_compra, duracion, terminado } = req.body;
   
   if (!nombre || cantidad == null || duracion == null) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
   
-  const sql = `INSERT INTO despensa 
-               (usuario_id, nombre, cantidad, unidad, precio, fecha_compra, duracion, terminado) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-  
-  db.run(sql, [
-    req.user.userId, 
-    nombre, 
-    cantidad, 
-    unidad || 'unidades', 
-    precio || 0, 
-    fechaCompra || new Date().toISOString(), 
-    duracion,
-    terminado || 0
-  ], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
+  // Usamos serialize para asegurar que las operaciones se ejecuten en orden.
+  // SQLite envuelve esto en una transacción si hay un error.
+  db.serialize(() => {
+    const sqlDespensa = `INSERT INTO despensa 
+                 (usuario_id, nombre, cantidad, unidad, precio, fecha_compra, duracion, terminado) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    // Devolver el producto recién creado
-    db.get('SELECT * FROM despensa WHERE id = ?', [this.lastID], (err, row) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json(row);
+    db.run(sqlDespensa, [
+      req.user.userId, 
+      nombre, 
+      cantidad, 
+      unidad || 'unidades', 
+      precio || 0, 
+      fecha_compra || new Date().toISOString(), 
+      duracion,
+      terminado || 0
+    ], function(err) {
+      if (err) {
+        console.error("Error insertando en despensa:", err);
+        return res.status(500).json({ error: 'Error al guardar en despensa: ' + err.message });
+      }
+      
+      const nuevoProductoId = this.lastID;
+      const productoPrecio = precio || 0;
+
+      // Si el producto tiene un precio, lo agregamos como un gasto
+      if (productoPrecio > 0) {
+        const sqlGasto = 'INSERT INTO gastos (usuario_id, concepto, categoria, semanal, mensual) VALUES (?, ?, ?, ?, ?)';
+        const conceptoGasto = `Compra despensa: ${nombre}`;
+        const gastoSemanal = productoPrecio / 4; // Asumimos 4 semanas por mes
+        
+        db.run(sqlGasto, [req.user.userId, conceptoGasto, 'Despensa', gastoSemanal, productoPrecio], (err) => {
+          if (err) console.error("Error creando gasto asociado:", err); // No bloqueamos la respuesta por esto
+        });
+      }
+
+      // Devolver el producto recién creado de la despensa
+      db.get('SELECT * FROM despensa WHERE id = ?', [nuevoProductoId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json(row);
+      });
     });
   });
 });
@@ -460,21 +481,26 @@ app.delete('/api/recordatorios/:id', authenticateToken, (req, res) => {
 });
 
 // Servir archivos estáticos del frontend
-app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // Ruta para el login
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'login.html'));
 });
 
 // Ruta principal (protegida)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
 // Ruta para despensa
 app.get('/despensa.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'despensa.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'despensa.html'));
+});
+
+// Añadir "Despensa" a las categorías de gastos en el frontend
+app.get('/editar.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'editar.html'));
 });
 
 // Manejo de errores global

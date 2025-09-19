@@ -173,8 +173,7 @@ function confirmarNuevo() {
     document.getElementById("nuevo-producto-cantidad").value
   );
   const unidad = document.getElementById("nuevo-producto-unidad").value;
-  const precio =
-    parseFloat(document.getElementById("nuevo-producto-precio").value) || 0;
+  const precio = parseFloat(document.getElementById("nuevo-producto-precio").value) || 0;
   const fechaCompraVal = document.getElementById(
     "nuevo-producto-fecha-compra"
   ).value;
@@ -205,7 +204,7 @@ function confirmarNuevo() {
     cantidad,
     unidad,
     precio,
-    fecha_compra,
+    fecha_compra, // Aseguramos que el nombre del campo sea el correcto
     duracion,
     terminado: false,
   };
