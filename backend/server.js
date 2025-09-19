@@ -86,6 +86,27 @@ db.serialize(() => {
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
   )`);
+
+  // Tabla de presupuestos
+  db.run(`CREATE TABLE IF NOT EXISTS presupuestos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    categoria TEXT NOT NULL,
+    monto REAL NOT NULL,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(usuario_id, categoria),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
+
+  // Tabla de metas
+  db.run(`CREATE TABLE IF NOT EXISTS metas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    nombre TEXT NOT NULL,
+    monto_objetivo REAL NOT NULL,
+    fecha_objetivo DATE NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
 });
 
 // Middleware de autenticación
@@ -215,12 +236,12 @@ app.get('/api/gastos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/gastos', authenticateToken, (req, res) => {
-  const { concepto, categoria, semanal, mensual } = req.body;
+  const { concepto, categoria, semanal, mensual, fecha_creacion } = req.body;
   if (!concepto || semanal == null || mensual == null) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
-  const sql = 'INSERT INTO gastos (usuario_id, concepto, categoria, semanal, mensual) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual], function(err) {
+  const sql = 'INSERT INTO gastos (usuario_id, concepto, categoria, semanal, mensual, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)';
+  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual, fecha_creacion || new Date().toISOString()], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, concepto, categoria, semanal, mensual });
   });
@@ -257,12 +278,12 @@ app.get('/api/ingresos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/ingresos', authenticateToken, (req, res) => {
-  const { concepto, categoria, semanal, mensual } = req.body;
+  const { concepto, categoria, semanal, mensual, fecha_creacion } = req.body;
   if (!concepto || semanal == null || mensual == null) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
-  const sql = 'INSERT INTO ingresos (usuario_id, concepto, categoria, semanal, mensual) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual], function(err) {
+  const sql = 'INSERT INTO ingresos (usuario_id, concepto, categoria, semanal, mensual, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)';
+  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual, fecha_creacion || new Date().toISOString()], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, concepto, categoria, semanal, mensual });
   });
@@ -296,6 +317,120 @@ app.get('/api/user/profile', authenticateToken, (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(user);
+  });
+});
+
+// --- Ruta para datos del Dashboard ---
+app.get('/api/dashboard/historico', authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  const mesesAtras = 3; // Obtener datos de los últimos 3 meses
+  const historico = {};
+
+  const queries = [];
+  for (let i = 0; i < mesesAtras; i++) {
+    const fecha = new Date();
+    fecha.setMonth(fecha.getMonth() - i);
+    const anio = fecha.getFullYear();
+    const mes = fecha.getMonth() + 1; // 1-12
+    const mesKey = `${anio}-${String(mes).padStart(2, '0')}`;
+
+    historico[mesKey] = { ingresos: 0, gastos: 0 };
+
+  }
+
+  const sql = `
+    SELECT strftime('%Y-%m', fecha_creacion) as mes, 'ingreso' as tipo, SUM(mensual) as total
+    FROM ingresos
+    WHERE usuario_id = ? AND fecha_creacion >= date('now', '-3 months')
+    GROUP BY mes
+    UNION ALL
+    SELECT strftime('%Y-%m', fecha_creacion) as mes, 'gasto' as tipo, SUM(mensual) as total
+    FROM gastos
+    WHERE usuario_id = ? AND fecha_creacion >= date('now', '-3 months')
+    GROUP BY mes
+  `;
+
+  new Promise((resolve, reject) => {
+    db.all(sql, [userId, userId], (err, rows) => {
+      if (err) return reject(err);
+      rows.forEach(row => {
+        if (historico[row.mes]) {
+          if (row.tipo === 'ingreso') historico[row.mes].ingresos = row.total;
+          if (row.tipo === 'gasto') historico[row.mes].gastos = row.total;
+        }
+      });
+      resolve();
+    });
+  })
+    .then(() => res.json(historico))
+    .catch(err => res.status(500).json({ error: err.message }));
+});
+
+// --- Rutas para Presupuestos ---
+app.get('/api/presupuestos', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM presupuestos WHERE usuario_id = ?', [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    // Convertir el array de objetos a un objeto clave-valor como en el frontend
+    const presupuestosObj = rows.reduce((obj, item) => {
+      obj[item.categoria] = item.monto;
+      return obj;
+    }, {});
+    res.json(presupuestosObj);
+  });
+});
+
+app.post('/api/presupuestos', authenticateToken, (req, res) => {
+  const { categoria, monto } = req.body;
+  if (!categoria || monto == null || monto <= 0) {
+    return res.status(400).json({ error: 'Categoría y monto válido son requeridos' });
+  }
+
+  // Usamos INSERT OR REPLACE para simplificar: si ya existe un presupuesto para esa categoría, lo actualiza.
+  const sql = `INSERT INTO presupuestos (usuario_id, categoria, monto) VALUES (?, ?, ?)
+               ON CONFLICT(usuario_id, categoria) DO UPDATE SET monto = excluded.monto`;
+  
+  db.run(sql, [req.user.userId, categoria, monto], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ categoria, monto });
+  });
+});
+
+app.delete('/api/presupuestos/:categoria', authenticateToken, (req, res) => {
+  const { categoria } = req.params;
+  db.run('DELETE FROM presupuestos WHERE usuario_id = ? AND categoria = ?', [req.user.userId, categoria], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Presupuesto no encontrado' });
+    res.json({ message: 'Presupuesto eliminado' });
+  });
+});
+
+// --- Rutas para Metas ---
+app.get('/api/metas', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM metas WHERE usuario_id = ? ORDER BY fecha_objetivo ASC', [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/metas', authenticateToken, (req, res) => {
+  const { nombre, monto_objetivo, fecha_objetivo } = req.body;
+  if (!nombre || !monto_objetivo || !fecha_objetivo) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  }
+
+  const sql = 'INSERT INTO metas (usuario_id, nombre, monto_objetivo, fecha_objetivo) VALUES (?, ?, ?, ?)';
+  db.run(sql, [req.user.userId, nombre, monto_objetivo, fecha_objetivo], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ id: this.lastID, nombre, monto_objetivo, fecha_objetivo });
+  });
+});
+
+app.delete('/api/metas/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM metas WHERE id = ? AND usuario_id = ?', [id, req.user.userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Meta no encontrada' });
+    res.json({ message: 'Meta eliminada', id });
   });
 });
 
@@ -501,6 +636,10 @@ app.get('/despensa.html', (req, res) => {
 // Añadir "Despensa" a las categorías de gastos en el frontend
 app.get('/editar.html', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'editar.html'));
+});
+
+app.get('/dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'dashboard.html'));
 });
 
 // Manejo de errores global

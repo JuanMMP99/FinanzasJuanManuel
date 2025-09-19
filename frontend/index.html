@@ -252,6 +252,25 @@
         </div>
     </div>
 
+    <!-- Modal para asignar ahorro a meta -->
+    <div class="modal" id="modal-asignar-ahorro">
+        <div class="modal-content">
+            <h3>Asignar Ahorro a Meta</h3>
+            <p>Ahorro disponible este mes: <strong id="ahorro-disponible-meta"></strong></p>
+            <div class="flex-row">
+                <div>
+                    <input type="number" id="asignar-monto" placeholder="Monto a asignar" min="0" />
+                    <input type="hidden" id="asignar-meta-id" />
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="guardarAsignacionAhorro()">Asignar</button>
+                <button onclick="document.getElementById('modal-asignar-ahorro').style.display='none'">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Loading overlay -->
     <div class="loading-overlay" id="loading-overlay" style="display: none">
         <div class="loading-spinner"></div>

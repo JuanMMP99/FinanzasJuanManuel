@@ -13,8 +13,8 @@ let gastos = [];
 let ingresos = [];
 let tipoPendiente = null;
 let datosPendientes = null;
-let presupuestos = JSON.parse(localStorage.getItem('presupuestos')) || {};
-let metas = JSON.parse(localStorage.getItem('metas')) || [];
+let presupuestos = {}; // Se cargará desde la API
+let metas = []; // Se cargará desde la API
 
 function checkAuth() {
   if (!authToken) {
@@ -51,14 +51,6 @@ function loadUserData() {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   if (userData.nombre) {
     document.getElementById('user-name').textContent = userData.nombre;
-  }
-}
-
-function logout() {
-  if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    window.location.href = '/login';
   }
 }
 
@@ -106,14 +98,18 @@ function formatearNumero(num) {
 async function cargarDatos() {
   showLoading();
   try {
-    await Promise.all([cargarGastos(), cargarIngresos()]);
+    // Cargamos todo en paralelo para mayor eficiencia
+    await Promise.all([
+      cargarGastos(), 
+      cargarIngresos(), 
+      cargarPresupuestosDesdeAPI(), 
+      cargarMetasDesdeAPI()
+    ]);
     actualizarResumen();
-    cargarPresupuestos();
-    cargarMetas();
     verificarRecordatorios();
   } catch (error) {
     console.error('Error cargando datos:', error);
-    alert('Error al cargar los datos');
+    showToast('Error al cargar los datos', 'error');
   } finally {
     hideLoading();
   }
@@ -144,6 +140,30 @@ async function cargarIngresos() {
   } catch (error) {
     console.error('Error cargando ingresos:', error);
     throw error;
+  }
+}
+
+async function cargarPresupuestosDesdeAPI() {
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/presupuestos`);
+    if (response.ok) {
+      presupuestos = await response.json();
+      renderizarPresupuestos(); // Renombramos la función para evitar confusión
+    }
+  } catch (error) {
+    console.error('Error cargando presupuestos:', error);
+  }
+}
+
+async function cargarMetasDesdeAPI() {
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/metas`);
+    if (response.ok) {
+      metas = await response.json();
+      renderizarMetas(); // Renombramos la función para evitar confusión
+    }
+  } catch (error) {
+    console.error('Error cargando metas:', error);
   }
 }
 
@@ -248,8 +268,9 @@ function actualizarResumen() {
 }
 
 async function eliminarRegistro(tabla, id) {
-  if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
-  
+  const confirmado = await showConfirm('Confirmar Eliminación', '¿Seguro que deseas eliminar este registro?');
+  if (!confirmado) return;
+
   showLoading();
   try {
     const response = await makeAuthenticatedRequest(`${API_BASE}/api/${tabla}/${id}`, {
@@ -265,13 +286,14 @@ async function eliminarRegistro(tabla, id) {
         mostrarIngresos();
       }
       actualizarResumen();
+      showToast('Registro eliminado correctamente', 'success');
     } else {
       const error = await response.json();
-      alert('Error al eliminar: ' + (error.error || 'Error desconocido'));
+      showToast('Error al eliminar: ' + (error.error || 'Error desconocido'), 'error');
     }
   } catch (error) {
     console.error('Error eliminando registro:', error);
-    alert('Error al eliminar el registro');
+    showToast('Error al eliminar el registro', 'error');
   } finally {
     hideLoading();
   }
@@ -294,7 +316,7 @@ function confirmarNuevo(tipo) {
   }
 
   if (!concepto) {
-    alert('Por favor, ingresa el concepto.');
+    showToast('Por favor, ingresa el concepto.', 'info');
     return;
   }
   
@@ -303,15 +325,16 @@ function confirmarNuevo(tipo) {
   } else if (mensual > 0 && semanal === 0) {
     semanal = mensual / 4;
   } else if (semanal === 0 && mensual === 0) {
-    alert('Por favor, ingresa al menos un valor.');
+    showToast('Por favor, ingresa al menos un valor.', 'info');
     return;
   }
 
   datosPendientes = { 
     concepto, 
     categoria,
-    semanal: Math.round(semanal * 100) / 100, 
-    mensual: Math.round(mensual * 100) / 100 
+    semanal: Math.round(semanal * 100) / 100,
+    mensual: Math.round(mensual * 100) / 100,
+    fecha_creacion: new Date().toISOString() // Añadimos la fecha de creación
   };
 
   document.getElementById('modal-detalle').innerHTML = `
@@ -354,13 +377,14 @@ async function guardarRegistro() {
       
       actualizarResumen();
       cerrarModal();
+      showToast(`'${nuevoRegistro.concepto}' agregado exitosamente.`, 'success');
     } else {
       const error = await response.json();
-      alert('Error al guardar: ' + (error.error || 'Error desconocido'));
+      showToast('Error al guardar: ' + (error.error || 'Error desconocido'), 'error');
     }
   } catch (error) {
     console.error('Error guardando registro:', error);
-    alert('Error al guardar el registro');
+    showToast('Error al guardar el registro', 'error');
   } finally {
     hideLoading();
   }
@@ -385,6 +409,15 @@ function irADespensa() {
 
 function irADashboard() {
   window.location.href = '/dashboard.html';
+}
+
+async function logout() {
+  const confirmado = await showConfirm('Cerrar Sesión', '¿Estás seguro que deseas cerrar sesión?');
+  if (confirmado) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    window.location.href = '/login';
+  }
 }
 
 function verificarAlertasPresupuesto() {
@@ -451,7 +484,7 @@ async function actualizarCategoria(tipo, id, categoria) {
       }
       
       // Actualizar dashboard
-      cargarPresupuestos();
+      renderizarPresupuestos();
     }
   } catch (error) {
     console.error('Error actualizando categoría:', error);
@@ -459,7 +492,7 @@ async function actualizarCategoria(tipo, id, categoria) {
 }
 
 // Funciones para presupuestos
-function cargarPresupuestos() {
+function renderizarPresupuestos() {
   const presupuestosContainer = document.getElementById('presupuestosContainer');
   if (!presupuestosContainer) return;
   
@@ -509,25 +542,35 @@ function cerrarModalPresupuesto() {
   document.getElementById('modal-presupuesto').style.display = 'none';
 }
 
-function guardarPresupuesto() {
+async function guardarPresupuesto() {
   const categoria = document.getElementById('presupuesto-categoria').value;
   const monto = parseFloat(document.getElementById('presupuesto-monto').value);
   
   if (!categoria || isNaN(monto) || monto <= 0) {
-    alert('Por favor, completa todos los campos correctamente.');
+    showToast('Por favor, completa todos los campos correctamente.', 'info');
     return;
   }
-  
-  presupuestos[categoria] = monto;
-  localStorage.setItem('presupuestos', JSON.stringify(presupuestos));
-  
-  cargarPresupuestos();
-  cargarAlertas();
-  cerrarModalPresupuesto();
+
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/presupuestos`, {
+      method: 'POST',
+      body: JSON.stringify({ categoria, monto })
+    });
+    if (response.ok) {
+      presupuestos[categoria] = monto; // Actualizar localmente
+      renderizarPresupuestos();
+      // cargarAlertas(); // Si tienes una función de alertas, llámala aquí
+      showToast(`Presupuesto para '${categoria}' guardado.`, 'success');
+      cerrarModalPresupuesto();
+    }
+  } catch (error) {
+    console.error('Error guardando presupuesto:', error);
+    showToast('No se pudo guardar el presupuesto.', 'error');
+  }
 }
 
 // Funciones para metas
-function cargarMetas() {
+function renderizarMetas() {
   const metasContainer = document.getElementById('metasContainer');
   if (!metasContainer) return;
   
@@ -539,18 +582,23 @@ function cargarMetas() {
   }
   
   const ahorroActual = calcularTotalIngresos() - calcularTotalGastos();
-  
-  metas.forEach((meta, index) => {
-    const porcentaje = (ahorroActual / meta.monto) * 100;
+
+  metas.forEach(meta => {
+    const porcentaje = (meta.monto_actual / meta.monto_objetivo) * 100;
     const div = document.createElement('div');
     div.className = 'meta-item';
     div.innerHTML = `
       <div>
         <strong>${meta.nombre}</strong>
-        <div>${formatearNumero(ahorroActual)} / ${formatearNumero(meta.monto)}</div>
+        <div>${formatearNumero(meta.monto_actual)} / ${formatearNumero(meta.monto_objetivo)}</div>
+        <div class="barra-progreso meta">
+            <div class="progreso" style="width: ${Math.min(porcentaje, 100)}%"></div>
+        </div>
       </div>
-      <div>${Math.min(Math.round(porcentaje), 100)}%</div>
-      <button class="btn-danger" onclick="eliminarMeta(${index})">Eliminar</button>
+      <div class="meta-actions">
+        <button class="btn-secondary" onclick="mostrarModalAsignar(${meta.id})">Asignar</button>
+        <button class="btn-danger" onclick="eliminarMeta(${meta.id})">Eliminar</button>
+      </div>
     `;
     
     metasContainer.appendChild(div);
@@ -565,33 +613,86 @@ function cerrarModalMeta() {
   document.getElementById('modal-meta').style.display = 'none';
 }
 
-function guardarMeta() {
+async function guardarMeta() {
   const nombre = document.getElementById('meta-nombre').value.trim();
-  const monto = parseFloat(document.getElementById('meta-monto').value);
-  const fecha = document.getElementById('meta-fecha').value;
+  const monto_objetivo = parseFloat(document.getElementById('meta-monto').value);
+  const fecha_objetivo = document.getElementById('meta-fecha').value;
   
-  if (!nombre || isNaN(monto) || monto <= 0 || !fecha) {
-    alert('Por favor, completa todos los campos correctamente.');
+  if (!nombre || isNaN(monto_objetivo) || monto_objetivo <= 0 || !fecha_objetivo) {
+    showToast('Por favor, completa todos los campos correctamente.', 'info');
     return;
   }
   
-  metas.push({
-    nombre,
-    monto,
-    fecha
-  });
-  
-  localStorage.setItem('metas', JSON.stringify(metas));
-  
-  cargarMetas();
-  cerrarModalMeta();
+  try {
+    const response = await makeAuthenticatedRequest(`${API_BASE}/api/metas`, {
+      method: 'POST',
+      body: JSON.stringify({ nombre, monto_objetivo, fecha_objetivo })
+    });
+    if (response.ok) {
+      const nuevaMeta = await response.json();
+      metas.push(nuevaMeta); // Actualizar localmente
+      renderizarMetas();
+      showToast(`Meta '${nombre}' establecida.`, 'success');
+      cerrarModalMeta();
+    }
+  } catch (error) {
+    console.error('Error guardando meta:', error);
+    showToast('No se pudo guardar la meta.', 'error');
+  }
 }
 
-function eliminarMeta(index) {
-  if (confirm('¿Estás seguro de eliminar esta meta?')) {
-    metas.splice(index, 1);
-    localStorage.setItem('metas', JSON.stringify(metas));
-    cargarMetas();
+function mostrarModalAsignar(metaId) {
+    const ahorroDisponible = calcularTotalIngresos() - calcularTotalGastos();
+    document.getElementById('ahorro-disponible-meta').textContent = formatearNumero(ahorroDisponible);
+    document.getElementById('asignar-meta-id').value = metaId;
+    document.getElementById('asignar-monto').value = '';
+    document.getElementById('modal-asignar-ahorro').style.display = 'flex';
+}
+
+async function guardarAsignacionAhorro() {
+    const metaId = document.getElementById('asignar-meta-id').value;
+    const monto = parseFloat(document.getElementById('asignar-monto').value);
+
+    if (!metaId || isNaN(monto) || monto <= 0) {
+        showToast('Por favor, ingresa un monto válido.', 'info');
+        return;
+    }
+
+    try {
+        const response = await makeAuthenticatedRequest(`${API_BASE}/api/metas/${metaId}/asignar`, {
+            method: 'POST',
+            body: JSON.stringify({ monto })
+        });
+
+        if (response.ok) {
+            const metaIndex = metas.findIndex(m => m.id == metaId);
+            if (metaIndex !== -1) {
+                metas[metaIndex].monto_actual += monto;
+            }
+            renderizarMetas();
+            showToast('Ahorro asignado a tu meta.', 'success');
+            document.getElementById('modal-asignar-ahorro').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error asignando ahorro:', error);
+        showToast('No se pudo asignar el ahorro.', 'error');
+    }
+}
+
+async function eliminarMeta(id) {
+  const confirmado = await showConfirm('Eliminar Meta', '¿Estás seguro de eliminar esta meta?');
+  if (confirmado) {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_BASE}/api/metas/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        metas = metas.filter(meta => meta.id !== id); // Actualizar localmente
+        renderizarMetas();
+        showToast('Meta eliminada.', 'success');
+      }
+    } catch (error) {
+      console.error('Error eliminando meta:', error);
+      showToast('No se pudo eliminar la meta.', 'error');
+    }
   }
 }
 
@@ -600,38 +701,19 @@ function verificarRecordatorios() {
   // Verificar recordatorios de pago de servicios (ejemplo: día 10 de cada mes)
   const hoy = new Date();
   if (hoy.getDate() === 10) {
-    mostrarNotificacion('Recordatorio: Hoy es día de pago de servicios.', 'info');
+    showToast('Recordatorio: Hoy es día de pago de servicios.', 'info');
   }
   
   // Verificar metas próximas a vencer (menos de 7 días)
   metas.forEach(meta => {
-    const fechaMeta = new Date(meta.fecha);
+    const fechaMeta = new Date(meta.fecha_objetivo);
     const diffTime = fechaMeta - hoy;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays <= 7 && diffDays >= 0) {
-      mostrarNotificacion(`Meta "${meta.nombre}" está próxima a vencer en ${diffDays} días.`, 'advertencia');
+      showToast(`Meta "${meta.nombre}" vence en ${diffDays} días.`, 'info');
     }
   });
-}
-
-function mostrarNotificacion(mensaje, tipo) {
-  // Crear notificación visual
-  const notificacion = document.createElement('div');
-  notificacion.className = `alerta-item ${tipo}`;
-  notificacion.textContent = mensaje;
-  notificacion.style.position = 'fixed';
-  notificacion.style.top = '20px';
-  notificacion.style.right = '20px';
-  notificacion.style.zIndex = '10000';
-  notificacion.style.maxWidth = '300px';
-  
-  document.body.appendChild(notificacion);
-  
-  // Eliminar después de 5 segundos
-  setTimeout(() => {
-    notificacion.remove();
-  }, 5000);
 }
 
 // Cerrar modales al hacer clic fuera de ellos
@@ -639,8 +721,4 @@ document.addEventListener('click', function(e) {
   if (e.target.classList.contains('modal')) {
     e.target.style.display = 'none';
   }
-});
-
-app.get('/dashboard.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'dashboard.html'));
 });

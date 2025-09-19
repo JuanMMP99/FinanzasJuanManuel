@@ -10,13 +10,25 @@ let authToken = localStorage.getItem('authToken');
 // Variables globales
 let gastos = [];
 let ingresos = [];
-let presupuestos = JSON.parse(localStorage.getItem('presupuestos')) || {};
+let presupuestos = {};
 
 // Instancias de gráficos
 let gastosCategoriaChartInstance = null;
 let comparativaMensualChartInstance = null;
 let proyeccionAhorrosChartInstance = null;
 let flujoEfectivoChartInstance = null;
+
+// Paleta de colores unificada para los gráficos
+const CHART_COLORS = {
+    red: 'rgba(255, 99, 132, 0.8)',
+    green: 'rgba(75, 192, 192, 0.8)',
+    yellow: 'rgba(255, 206, 86, 0.8)',
+    blue: 'rgba(54, 162, 235, 0.8)',
+    purple: 'rgba(153, 102, 255, 0.8)',
+    orange: 'rgba(255, 159, 64, 0.8)',
+    grey: 'rgba(201, 203, 207, 0.8)',
+    pink: 'rgba(255, 105, 180, 0.8)'
+};
 
 function checkAuth() {
     if (!authToken) {
@@ -70,29 +82,33 @@ function formatearNumero(num) {
 async function cargarDatosCompletos() {
     showLoading(true);
     try {
-        const [gastosResponse, ingresosResponse] = await Promise.all([
+        const [gastosResponse, ingresosResponse, historicoResponse, presupuestosResponse] = await Promise.all([
             makeAuthenticatedRequest(`${API_BASE}/api/gastos`),
-            makeAuthenticatedRequest(`${API_BASE}/api/ingresos`)
+            makeAuthenticatedRequest(`${API_BASE}/api/ingresos`),
+            makeAuthenticatedRequest(`${API_BASE}/api/dashboard/historico`),
+            makeAuthenticatedRequest(`${API_BASE}/api/presupuestos`)
         ]);
 
         if (gastosResponse.ok) gastos = await gastosResponse.json();
         if (ingresosResponse.ok) ingresos = await ingresosResponse.json();
+        if (presupuestosResponse.ok) presupuestos = await presupuestosResponse.json();
+        const historico = historicoResponse.ok ? await historicoResponse.json() : {};
 
-        inicializarDashboard();
+        inicializarDashboard(historico);
 
     } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
-        alert('Error al cargar los datos del dashboard');
+        showToast('Error al cargar los datos del dashboard', 'error');
     } finally {
         showLoading(false);
     }
 }
 
-function inicializarDashboard() {
+function inicializarDashboard(historico) {
     crearGraficoGastosPorCategoria();
-    crearComparativaMensual();
+    crearComparativaMensual(historico);
     crearProyeccionAhorros();
-    crearGraficoFlujoEfectivo();
+    crearGraficoFlujoEfectivo(historico);
     mostrarTopGastos();
     cargarAlertas();
 }
@@ -115,7 +131,7 @@ function crearGraficoGastosPorCategoria() {
             labels: Object.keys(gastosPorCategoria),
             datasets: [{
                 data: Object.values(gastosPorCategoria),
-                backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#607D8B', '#FFEB3B', '#00BCD4'],
+                backgroundColor: Object.values(CHART_COLORS),
             }]
         },
         options: {
@@ -137,28 +153,29 @@ function crearGraficoGastosPorCategoria() {
     });
 }
 
-function crearGraficoFlujoEfectivo() {
+function crearGraficoFlujoEfectivo(historico) {
     const ctx = document.getElementById('flujoEfectivoChart');
     if (!ctx) return;
     if (flujoEfectivoChartInstance) flujoEfectivoChartInstance.destroy();
 
-    // Simulación de datos históricos (idealmente vendrían del backend)
-    const meses = ['Hace 2 Meses', 'Mes Anterior', 'Mes Actual'];
-    const totalIngresosActual = ingresos.reduce((sum, i) => sum + i.mensual, 0);
-    const totalGastosActual = gastos.reduce((sum, g) => sum + g.mensual, 0);
+    const meses = Object.keys(historico).sort(); // Ordenar de más antiguo a más reciente
+    const labels = meses.map(mes => {
+        const [anio, mesNum] = mes.split('-');
+        return new Date(anio, mesNum - 1).toLocaleString('es-MX', { month: 'long' });
+    });
 
-    const ingresosData = [totalIngresosActual * 0.85, totalIngresosActual * 0.95, totalIngresosActual];
-    const gastosData = [totalGastosActual * 0.9, totalGastosActual * 1.1, totalGastosActual];
+    const ingresosData = meses.map(mes => historico[mes].ingresos);
+    const gastosData = meses.map(mes => historico[mes].gastos);
     const balanceData = ingresosData.map((ing, i) => ing - gastosData[i]);
 
     flujoEfectivoChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: meses,
+            labels: labels,
             datasets: [
-                { type: 'bar', label: 'Ingresos', data: ingresosData, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
-                { type: 'bar', label: 'Gastos', data: gastosData, backgroundColor: 'rgba(255, 99, 132, 0.6)' },
-                { type: 'line', label: 'Balance', data: balanceData, borderColor: '#FFC107', tension: 0.1, fill: false }
+                { type: 'bar', label: 'Ingresos', data: ingresosData, backgroundColor: CHART_COLORS.green },
+                { type: 'bar', label: 'Gastos', data: gastosData, backgroundColor: CHART_COLORS.red },
+                { type: 'line', label: 'Balance', data: balanceData, borderColor: CHART_COLORS.yellow, tension: 0.1, fill: false }
             ]
         },
         options: { responsive: true, scales: { y: { beginAtZero: true } } }
@@ -186,21 +203,25 @@ function mostrarTopGastos() {
     `).join('');
 }
 
-function crearComparativaMensual() {
+function crearComparativaMensual(historico) {
     const ctx = document.getElementById('comparativaMensualChart');
     if (!ctx) return;
     if (comparativaMensualChartInstance) comparativaMensualChartInstance.destroy();
 
-    const totalGastos = gastos.reduce((sum, g) => sum + g.mensual, 0);
-    const totalIngresos = ingresos.reduce((sum, i) => sum + i.mensual, 0);
+    const meses = Object.keys(historico).sort();
+    const mesActualKey = meses[meses.length - 1] || '';
+    const mesAnteriorKey = meses[meses.length - 2] || '';
+
+    const gastosData = [historico[mesAnteriorKey]?.gastos || 0, historico[mesActualKey]?.gastos || 0];
+    const ingresosData = [historico[mesAnteriorKey]?.ingresos || 0, historico[mesActualKey]?.ingresos || 0];
 
     comparativaMensualChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: ['Mes Anterior', 'Mes Actual'],
             datasets: [
-                { label: 'Gastos', data: [totalGastos * 0.8, totalGastos], backgroundColor: '#F44336' },
-                { label: 'Ingresos', data: [totalIngresos * 0.9, totalIngresos], backgroundColor: '#4CAF50' }
+                { label: 'Gastos', data: gastosData, backgroundColor: CHART_COLORS.red },
+                { label: 'Ingresos', data: ingresosData, backgroundColor: CHART_COLORS.green }
             ]
         },
         options: {
@@ -232,12 +253,12 @@ function crearProyeccionAhorros() {
             datasets: [{
                 label: 'Proyección de ahorros',
                 data: proyeccion,
-                borderColor: '#2196F3',
+                borderColor: CHART_COLORS.blue,
                 tension: 0.1,
                 fill: 'start',
-                pointBackgroundColor: '#2196F3',
+                pointBackgroundColor: CHART_COLORS.blue,
                 pointRadius: 5,
-                backgroundColor: 'rgba(33, 150, 243, 0.1)'
+                backgroundColor: CHART_COLORS.blue.replace('0.8', '0.2') // Usamos el mismo color pero más transparente
             }]
         },
         options: { responsive: true, scales: { y: { beginAtZero: true } } }
@@ -250,8 +271,7 @@ function cargarAlertas() {
 
     alertasContainer.innerHTML = '';
     const alertasPresupuesto = verificarAlertasPresupuesto();
-    const alertasGastos = verificarGastosInusuales();
-    const todasAlertas = [...alertasPresupuesto, ...alertasGastos];
+    const todasAlertas = [...alertasPresupuesto];
 
     if (todasAlertas.length === 0) {
         alertasContainer.innerHTML = '<p>No hay alertas en este momento. ¡Buen trabajo!</p>';
@@ -261,10 +281,17 @@ function cargarAlertas() {
     todasAlertas.forEach(alerta => {
         const div = document.createElement('div');
         let icon = 'ℹ️';
-        if (alerta.tipo === 'critica') icon = '❗';
-        if (alerta.tipo === 'advertencia') icon = '⚠️';
+        let tipoClase = 'info';
+        if (alerta.tipo === 'critica') {
+            icon = '❗';
+            tipoClase = 'critica';
+        }
+        if (alerta.tipo === 'advertencia') {
+            icon = '⚠️';
+            tipoClase = 'advertencia';
+        }
 
-        div.className = `alerta-item ${alerta.tipo}`;
+        div.className = `alerta-item ${tipoClase}`;
         div.innerHTML = `<span class="alerta-icon">${icon}</span> ${alerta.mensaje}`;
         alertasContainer.appendChild(div);
     });
@@ -291,22 +318,6 @@ function verificarAlertasPresupuesto() {
             });
         }
     }
-    return alertas;
-}
-
-function verificarGastosInusuales() {
-    const alertas = [];
-    const totalGastos = gastos.reduce((sum, g) => sum + g.mensual, 0);
-    const gastoPromedio = totalGastos / Math.max(gastos.length, 1);
-
-    gastos.forEach(gasto => {
-        if (gasto.mensual > gastoPromedio * 2 && gasto.mensual > 500) { // Gasto > 2x promedio y significativo
-            alertas.push({
-                tipo: 'info',
-                mensaje: `Gasto inusual detectado: ${gasto.concepto} (${formatearNumero(gasto.mensual)})`
-            });
-        }
-    });
     return alertas;
 }
 
