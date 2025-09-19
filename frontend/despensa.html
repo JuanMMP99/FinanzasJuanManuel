@@ -70,11 +70,10 @@
                 <input type="date" id="nuevo-producto-fecha-compra" />
             </div>
             <div>
-                <input type="number" id="nuevo-producto-duracion" placeholder="Duración (días)" min="1" required />
+                <input type="number" id="nuevo-producto-duracion" placeholder="Duración aproximada (días)" min="1" required />
             </div>
-        </div>
-        <button onclick="confirmarNuevo()">Agregar Producto</button>
-    </div>
+        <button id="btn-agregar" type="button" onclick="confirmarNuevo()">Agregar Producto</button>
+
 
     <!-- Modal de confirmación -->
     <div class="modal" id="modal-confirmacion">

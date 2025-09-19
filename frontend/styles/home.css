@@ -55,15 +55,121 @@ h3 {
   margin-bottom: 15px;
 }
 
-.resumen {
+/* Dashboard */
+.dashboard {
+  margin-bottom: 30px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.dashboard-card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: 300px;
+}
+
+.dashboard-card h3 {
+  margin-bottom: 15px;
+  color: #2e7d32;
+}
+
+.alerta-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+}
+
+.alerta-item.critica {
+  background-color: #f8d7da;
+  border-left-color: #dc3545;
+  color: #721c24;
+}
+
+.alerta-item.info {
+  background-color: #cce5ff;
+  border-left-color: #007bff;
+  color: #004085;
+}
+
+.alerta-item.advertencia {
+  background-color: #fff3cd;
+  border-left-color: #ffc107;
+  color: #856404;
+}
+
+/* Presupuestos */
+.presupuestos-section {
+  margin-bottom: 30px;
+}
+
+.presupuestos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.presupuesto-card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.presupuesto-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 30px;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.barra-progreso {
+  height: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.progreso {
+  height: 100%;
+  border-radius: 5px;
+  background-color: #4caf50;
+}
+
+.progreso.advertencia {
+  background-color: #ff9800;
+}
+
+.progreso.peligro {
+  background-color: #f44336;
+}
+
+.meta-item {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
 .resumen-item {
-  flex: 1;
+  flex: 1 1 250px;
   background-color: white;
   padding: 20px;
   border-radius: 8px;
@@ -240,4 +346,30 @@ button:hover {
 .action-buttons button {
   padding: 8px 12px;
   font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .resumen {
+    flex-direction: column;
+  }
+
+  .resumen-item {
+    width: 100%;
+  }
+  
+  .dashboard-grid,
+  .presupuestos-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .user-actions {
+    display: flex;
+    gap: 10px;
+  }
 }

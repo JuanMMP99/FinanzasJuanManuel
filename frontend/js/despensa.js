@@ -175,9 +175,14 @@ function confirmarNuevo() {
   const unidad = document.getElementById("nuevo-producto-unidad").value;
   const precio =
     parseFloat(document.getElementById("nuevo-producto-precio").value) || 0;
-  const fechaCompra = document.getElementById(
+  const fechaCompraVal = document.getElementById(
     "nuevo-producto-fecha-compra"
   ).value;
+  // convertimos la fecha a ISO; si no hay, usamos ahora
+  const fecha_compra = fechaCompraVal
+    ? new Date(fechaCompraVal).toISOString()
+    : new Date().toISOString();
+
   const duracion = parseInt(
     document.getElementById("nuevo-producto-duracion").value
   );
@@ -200,52 +205,91 @@ function confirmarNuevo() {
     cantidad,
     unidad,
     precio,
-    fechaCompra: fechaCompra || new Date().toISOString(),
+    fecha_compra,
     duracion,
     terminado: false,
   };
 
-  // Mostrar modal de confirmación
-  document.getElementById(
-    "modal-detalle"
-  ).textContent = `¿Agregar ${cantidad} ${unidad} de ${nombre} por $${precio.toFixed(
-    2
-  )}?`;
-  document.getElementById("modal-confirmacion").style.display = "flex";
+  // Si estamos editando, incluir el ID en los datos
+  if (window.productoEditando) {
+    nuevo.id = window.productoEditando;
+    document.getElementById(
+      "modal-detalle"
+    ).textContent = `¿Actualizar ${cantidad} ${unidad} de ${nombre} por $${precio.toFixed(
+      2
+    )}?`;
+  } else {
+    document.getElementById(
+      "modal-detalle"
+    ).textContent = `¿Agregar ${cantidad} ${unidad} de ${nombre} por $${precio.toFixed(
+      2
+    )}?`;
+  }
 
-  // Guardar temporalmente el producto para confirmación
   window.productoTemporal = nuevo;
+  document.getElementById("modal-confirmacion").style.display = "flex";
 }
 
+// guardarRegistro: detecta si es creación (POST) o actualización (PUT)
 async function guardarRegistro() {
   try {
     mostrarLoading(true);
 
-    const response = await makeAuthenticatedRequest(
-      `${API_BASE}/api/despensa`,
-      {
-        method: "POST",
-        body: JSON.stringify(window.productoTemporal),
-      }
-    );
+    const isEditing = !!window.productoEditando;
+    const url = isEditing
+      ? `${API_BASE}/api/despensa/${window.productoEditando}`
+      : `${API_BASE}/api/despensa`;
+    const method = isEditing ? "PUT" : "POST";
+
+    // Preparar datos para enviar (sin el ID en el cuerpo para PUT)
+    const datosParaEnviar = { ...window.productoTemporal };
+    if (isEditing) {
+      delete datosParaEnviar.id; // El ID ya está en la URL
+    }
+
+    const response = await makeAuthenticatedRequest(url, {
+      method,
+      body: JSON.stringify(datosParaEnviar),
+    });
 
     if (response.ok) {
-      const nuevoProducto = await response.json();
-      productosDespensa.unshift(nuevoProducto);
+      const productoResp = await response.json();
+
+      if (isEditing) {
+        // Reemplazar el producto existente en el array local
+        const index = productosDespensa.findIndex(
+          (p) => p.id === window.productoEditando
+        );
+        if (index !== -1) {
+          productosDespensa[index] = productoResp;
+        } else {
+          // si por alguna razón no estaba, añadirlo (fallback)
+          productosDespensa.unshift(productoResp);
+        }
+        showNotification("Producto actualizado correctamente", "success");
+      } else {
+        // creación normal: añadir al inicio
+        productosDespensa.unshift(productoResp);
+        showNotification("Producto agregado correctamente", "success");
+      }
+
       mostrarDespensaTabla();
       limpiarFormulario();
       cerrarModal();
-      showNotification("Producto agregado correctamente", "success");
     } else {
-      const error = await response.json();
-      showNotification(
-        "Error al guardar el producto: " + (error.error || "Error desconocido"),
-        "error"
-      );
+      // intentar leer json; si no, texto
+      let err;
+      try {
+        err = await response.json();
+        err = err.error || JSON.stringify(err);
+      } catch (e) {
+        err = await response.text();
+      }
+      showNotification("Error al guardar el producto: " + err, "error");
     }
   } catch (err) {
     console.error("Error guardando producto:", err);
-    alert("Error al guardar el producto");
+    showNotification("Error de conexión al guardar", "error");
   } finally {
     mostrarLoading(false);
   }
@@ -312,6 +356,7 @@ async function marcarTerminado(id, terminado) {
   }
 }
 
+// limpiarFormulario: resetea todo y cierra modo edición
 function limpiarFormulario() {
   document.getElementById("nuevo-producto-nombre").value = "";
   document.getElementById("nuevo-producto-cantidad").value = "";
@@ -320,6 +365,13 @@ function limpiarFormulario() {
   document.getElementById("nuevo-producto-fecha-compra").valueAsDate =
     new Date();
   document.getElementById("nuevo-producto-unidad").value = "unidades";
+
+  // reset estado de edición
+  window.productoTemporal = null;
+  window.productoEditando = null;
+  if (document.getElementById("btn-agregar")) {
+    document.getElementById("btn-agregar").textContent = "Agregar Producto";
+  }
 }
 
 function cerrarModal() {
@@ -360,6 +412,7 @@ async function eliminarProducto(id) {
   }
 }
 
+// editarProducto: prepara el formulario para editar y ajusta el botón
 function editarProducto(id) {
   const producto = productosDespensa.find((p) => p.id === id);
   if (!producto) {
@@ -373,16 +426,28 @@ function editarProducto(id) {
   document.getElementById("nuevo-producto-unidad").value = producto.unidad;
   document.getElementById("nuevo-producto-precio").value =
     producto.precio || "";
-  document.getElementById("nuevo-producto-fecha-compra").value =
-    producto.fecha_compra.split("T")[0];
-  document.getElementById("nuevo-producto-duracion").value = producto.duracion;
 
-  // Guardar el ID para la actualización
+  // Asegurarse de formatear la fecha al formato input date (YYYY-MM-DD)
+  if (producto.fecha_compra) {
+    const fechaIso = new Date(producto.fecha_compra).toISOString();
+    document.getElementById("nuevo-producto-fecha-compra").value =
+      fechaIso.split("T")[0];
+  } else {
+    document.getElementById("nuevo-producto-fecha-compra").valueAsDate =
+      new Date();
+  }
+
+  document.getElementById("nuevo-producto-duracion").value =
+    producto.duracion || "";
+
+  // Guardar el ID para la actualización y cambiar el texto del botón
   window.productoEditando = id;
+  if (document.getElementById("btn-agregar")) {
+    document.getElementById("btn-agregar").textContent = "Guardar Cambios";
+  }
 
-  alert(
-    "Complete los cambios y haga clic en 'Agregar Producto' para actualizar"
-  );
+  // Dar una pista al usuario (mejor que alert); opcionalmente podrías mostrar un toast
+  showNotification("Editando producto. Haz los cambios y confirma.", "info");
 }
 
 function irAHome() {

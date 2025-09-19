@@ -38,6 +38,7 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
     concepto TEXT NOT NULL,
+    categoria TEXT DEFAULT 'otros',
     semanal REAL NOT NULL,
     mensual REAL NOT NULL,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -49,47 +50,14 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
     concepto TEXT NOT NULL,
-    semanal REAL NOT NULL,
-    mensual REAL NOT NULL,
-    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-  )`);
-});
-
-// Crear tablas
-db.serialize(() => {
-  // Tabla de usuarios (existente)
-  db.run(`CREATE TABLE IF NOT EXISTS usuarios (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  // Tabla de gastos con relación a usuario (existente)
-  db.run(`CREATE TABLE IF NOT EXISTS gastos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    concepto TEXT NOT NULL,
+    categoria TEXT DEFAULT 'otros',
     semanal REAL NOT NULL,
     mensual REAL NOT NULL,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
   )`);
 
-  // Tabla de ingresos con relación a usuario (existente)
-  db.run(`CREATE TABLE IF NOT EXISTS ingresos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    concepto TEXT NOT NULL,
-    semanal REAL NOT NULL,
-    mensual REAL NOT NULL,
-    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-  )`);
-
-  // Tabla de despensa (NUEVA)
+  // Tabla de despensa
   db.run(`CREATE TABLE IF NOT EXISTS despensa (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -101,6 +69,20 @@ db.serialize(() => {
     duracion INTEGER NOT NULL,
     terminado BOOLEAN DEFAULT 0,
     fecha_terminado DATETIME,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+  )`);
+
+  // Tabla de recordatorios
+  db.run(`CREATE TABLE IF NOT EXISTS recordatorios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    fecha_recordatorio DATETIME NOT NULL,
+    repetir BOOLEAN DEFAULT 0,
+    completado BOOLEAN DEFAULT 0,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
   )`);
@@ -233,14 +215,25 @@ app.get('/api/gastos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/gastos', authenticateToken, (req, res) => {
-  const { concepto, semanal, mensual } = req.body;
+  const { concepto, categoria, semanal, mensual } = req.body;
   if (!concepto || semanal == null || mensual == null) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
-  const sql = 'INSERT INTO gastos (usuario_id, concepto, semanal, mensual) VALUES (?, ?, ?, ?)';
-  db.run(sql, [req.user.userId, concepto, semanal, mensual], function(err) {
+  const sql = 'INSERT INTO gastos (usuario_id, concepto, categoria, semanal, mensual) VALUES (?, ?, ?, ?, ?)';
+  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual], function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, concepto, semanal, mensual });
+    res.json({ id: this.lastID, concepto, categoria, semanal, mensual });
+  });
+});
+
+app.put('/api/gastos/:id/categoria', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { categoria } = req.body;
+  
+  db.run('UPDATE gastos SET categoria = ? WHERE id = ? AND usuario_id = ?', 
+    [categoria, id, req.user.userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Categoría actualizada' });
   });
 });
 
@@ -264,12 +257,23 @@ app.get('/api/ingresos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/ingresos', authenticateToken, (req, res) => {
-  const { concepto, semanal, mensual } = req.body;
+  const { concepto, categoria, semanal, mensual } = req.body;
   if (!concepto || semanal == null || mensual == null) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
-  const sql = 'INSERT INTO ingresos (usuario_id, concepto, semanal, mensual) VALUES (?, ?, ?, ?)';
-  db.run(sql, [req.user.userId, concepto, semanal, mensual], function(err) {
+  const sql = 'INSERT INTO ingresos (usuario_id, concepto, categoria, semanal, mensual) VALUES (?, ?, ?, ?, ?)';
+  db.run(sql, [req.user.userId, concepto, categoria || 'otros', semanal, mensual], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, concepto, categoria, semanal, mensual });
+  });
+});
+
+app.put('/api/ingresos/:id/categoria', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { categoria } = req.body;
+  
+  db.run('UPDATE ingresos SET categoria = ? WHERE id = ? AND usuario_id = ?', 
+    [categoria, id, req.user.userId], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, concepto, semanal, mensual });
   });
@@ -350,9 +354,7 @@ app.post('/api/despensa', authenticateToken, (req, res) => {
 
 app.put('/api/despensa/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
-  const { terminado, fecha_terminado } = req.body; // Solo recibimos estos campos
-  
-  console.log('Datos recibidos para actualizar:', { id, terminado, fecha_terminado });
+  const { terminado, fecha_terminado } = req.body;
   
   // Verificar que el producto pertenece al usuario
   db.get('SELECT id FROM despensa WHERE id = ? AND usuario_id = ?', [id, req.user.userId], (err, row) => {
@@ -396,6 +398,83 @@ app.delete('/api/despensa/:id', authenticateToken, (req, res) => {
     if (this.changes === 0) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json({ message: 'Producto eliminado', id });
   });
+});
+
+// Rutas para recordatorios
+app.get('/api/recordatorios', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM recordatorios WHERE usuario_id = ? ORDER BY fecha_recordatorio ASC', 
+    [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post('/api/recordatorios', authenticateToken, (req, res) => {
+  const { tipo, titulo, descripcion, fecha_recordatorio, repetir } = req.body;
+  
+  if (!tipo || !titulo || !fecha_recordatorio) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+  
+  const sql = `INSERT INTO recordatorios 
+               (usuario_id, tipo, titulo, descripcion, fecha_recordatorio, repetir) 
+               VALUES (?, ?, ?, ?, ?, ?)`;
+  
+  db.run(sql, [
+    req.user.userId, 
+    tipo, 
+    titulo, 
+    descripcion || '', 
+    fecha_recordatorio,
+    repetir || 0
+  ], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    res.status(201).json({ 
+      id: this.lastID,
+      message: 'Recordatorio creado'
+    });
+  });
+});
+
+app.put('/api/recordatorios/:id/completado', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { completado } = req.body;
+  
+  db.run('UPDATE recordatorios SET completado = ? WHERE id = ? AND usuario_id = ?', 
+    [completado ? 1 : 0, id, req.user.userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Recordatorio actualizado' });
+  });
+});
+
+app.delete('/api/recordatorios/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  db.run('DELETE FROM recordatorios WHERE id = ? AND usuario_id = ?', 
+    [id, req.user.userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Recordatorio no encontrado' });
+    res.json({ message: 'Recordatorio eliminado', id });
+  });
+});
+
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, 'frontend')));
+
+// Ruta para el login
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
+});
+
+// Ruta principal (protegida)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
+
+// Ruta para despensa
+app.get('/despensa.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'despensa.html'));
 });
 
 // Manejo de errores global

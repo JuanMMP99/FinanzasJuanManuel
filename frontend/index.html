@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles/home.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Mis Finanzas Personales</title>
+</head>
+<body>
+    <div class="container">
+        <!-- Header con información del usuario -->
+        <div class="user-header">
+            <div class="user-info">
+                <h1>💰 Mis Finanzas Personales</h1>
+                <p class="user-welcome">
+                    Bienvenido, <span id="user-name">Usuario</span>
+                </p>
+            </div>
+            <div class="user-actions">
+                <button class="btn-despensa" onclick="irADespensa()">
+                    🥕 Despensa
+                </button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- Dashboard con gráficos -->
+        <div class="dashboard">
+            <h2>Dashboard Financiero</h2>
+            
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3>Distribución de Gastos por Categoría</h3>
+                    <canvas id="gastosCategoriaChart"></canvas>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Comparativa Mensual</h3>
+                    <canvas id="comparativaMensualChart"></canvas>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Proyección de Ahorros</h3>
+                    <canvas id="proyeccionAhorrosChart"></canvas>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>Alertas y Notificaciones</h3>
+                    <div id="alertasContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen mensual -->
+        <div class="resumen">
+            <div class="resumen-item">
+                <h3>Gastos Mensuales</h3>
+                <p id="resumen-gastos">$0</p>
+            </div>
+            <div class="resumen-item">
+                <h3>Ingresos Mensuales</h3>
+                <p id="resumen-ingresos">$0</p>
+            </div>
+            <div class="resumen-item">
+                <h3>Ganancias</h3>
+                <p id="resumen-ganancias">$0</p>
+            </div>
+        </div>
+
+        <!-- Presupuestos y Metas -->
+        <div class="presupuestos-section">
+            <h2>Presupuestos y Metas</h2>
+            
+            <div class="presupuestos-grid">
+                <div class="presupuesto-card">
+                    <h3>Presupuestos por Categoría</h3>
+                    <div id="presupuestosContainer"></div>
+                    <button onclick="mostrarModalPresupuesto()">Configurar Presupuestos</button>
+                </div>
+                
+                <div class="presupuesto-card">
+                    <h3>Metas de Ahorro</h3>
+                    <div id="metasContainer"></div>
+                    <button onclick="mostrarModalMeta()">Establecer Meta</button>
+                </div>
+            </div>
+        </div>
+
+        <h2>Gastos</h2>
+        <div class="table-responsive">
+            <table id="tabla-gastos">
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Categoría</th>
+                        <th>Gasto Semanal (MXN)</th>
+                        <th>Gasto Mensual (MXN)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr class="totals">
+                        <td>Total</td>
+                        <td></td>
+                        <td id="total-gasto-semanal">$0</td>
+                        <td id="total-gasto-mensual">$0</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <h3>Agregar nuevo gasto</h3>
+        <div class="flex-row">
+            <div>
+                <input type="text" id="nuevo-gasto-concepto" placeholder="Concepto" />
+            </div>
+            <div>
+                <select id="nuevo-gasto-categoria">
+                    <option value="">Seleccionar categoría</option>
+                    <option value="comida">Comida</option>
+                    <option value="transporte">Transporte</option>
+                    <option value="vivienda">Vivienda</option>
+                    <option value="servicios">Servicios</option>
+                    <option value="entretenimiento">Entretenimiento</option>
+                    <option value="salud">Salud</option>
+                    <option value="educacion">Educación</option>
+                    <option value="otros">Otros</option>
+                </select>
+            </div>
+            <div>
+                <input
+                    type="number"
+                    id="nuevo-gasto-semanal"
+                    placeholder="Gasto Semanal"
+                    min="0"
+                />
+            </div>
+            <div>
+                <input
+                    type="number"
+                    id="nuevo-gasto-mensual"
+                    placeholder="Gasto Mensual"
+                    min="0"
+                />
+            </div>
+        </div>
+        <button onclick="confirmarNuevo('gasto')">Agregar Gasto</button>
+
+        <h2>Ingresos</h2>
+        <div class="table-responsive">
+            <table id="tabla-ingresos">
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Categoría</th>
+                        <th>Ingreso Semanal (MXN)</th>
+                        <th>Ingreso Mensual (MXN)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr class="totals">
+                        <td>Total</td>
+                        <td></td>
+                        <td id="total-ingreso-semanal">$0</td>
+                        <td id="total-ingreso-mensual">$0</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <h3>Agregar nuevo ingreso</h3>
+        <div class="flex-row">
+            <div>
+                <input
+                    type="text"
+                    id="nuevo-ingreso-concepto"
+                    placeholder="Concepto"
+                />
+            </div>
+            <div>
+                <select id="nuevo-ingreso-categoria">
+                    <option value="">Seleccionar categoría</option>
+                    <option value="salario">Salario</option>
+                    <option value="freelance">Freelance</option>
+                    <option value="inversiones">Inversiones</option>
+                    <option value="regalos">Regalos</option>
+                    <option value="otros">Otros</option>
+                </select>
+            </div>
+            <div>
+                <input
+                    type="number"
+                    id="nuevo-ingreso-semanal"
+                    placeholder="Ingreso Semanal"
+                    min="0"
+                />
+            </div>
+            <div>
+                <input
+                    type="number"
+                    id="nuevo-ingreso-mensual"
+                    placeholder="Ingreso Mensual"
+                    min="0"
+                />
+            </div>
+        </div>
+        <button onclick="confirmarNuevo('ingreso')">Agregar Ingreso</button>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div class="modal" id="modal-confirmacion">
+        <div class="modal-content">
+            <h3>Confirmar Registro</h3>
+            <p id="modal-detalle"></p>
+            <div class="modal-buttons">
+                <button onclick="guardarRegistro()">Confirmar</button>
+                <button onclick="cerrarModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para presupuestos -->
+    <div class="modal" id="modal-presupuesto">
+        <div class="modal-content">
+            <h3>Configurar Presupuesto</h3>
+            <div class="flex-row">
+                <div>
+                    <select id="presupuesto-categoria">
+                        <option value="comida">Comida</option>
+                        <option value="transporte">Transporte</option>
+                        <option value="vivienda">Vivienda</option>
+                        <option value="servicios">Servicios</option>
+                        <option value="entretenimiento">Entretenimiento</option>
+                        <option value="salud">Salud</option>
+                        <option value="educacion">Educación</option>
+                        <option value="otros">Otros</option>
+                    </select>
+                </div>
+                <div>
+                    <input type="number" id="presupuesto-monto" placeholder="Monto mensual" min="0" />
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="guardarPresupuesto()">Guardar</button>
+                <button onclick="cerrarModalPresupuesto()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para metas -->
+    <div class="modal" id="modal-meta">
+        <div class="modal-content">
+            <h3>Establecer Meta de Ahorro</h3>
+            <div class="flex-row">
+                <div>
+                    <input type="text" id="meta-nombre" placeholder="Nombre de la meta" />
+                </div>
+                <div>
+                    <input type="number" id="meta-monto" placeholder="Monto objetivo" min="0" />
+                </div>
+                <div>
+                    <input type="date" id="meta-fecha" placeholder="Fecha objetivo" />
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="guardarMeta()">Guardar</button>
+                <button onclick="cerrarModalMeta()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none">
+        <div class="loading-spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
+    <script src="./js/home.js"></script>
+</body>
+</html>
